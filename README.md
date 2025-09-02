@@ -1,102 +1,110 @@
-# VisionTags EDU
+VisionTags EDU — Mobile Explainable AI Demo
 
-A minimal end-to-end demo of explainable image classification:
+Overview
+- Mobile app (Expo React Native) that classifies a photo and shows simple explanations: top‑k class bars, Grad‑CAM heatmap overlay, and a 2D embedding dot with nearby neighbors. Optional feedback feeds a mini confusion matrix.
+- Backend (Flask + PyTorch, MobileNetV3 Small) provides inference and explainability artifacts. Predictions are stored in SQLite for simple metrics.
 
-- Mobile app (Expo React Native + TypeScript): capture/upload an image, show top-k class bars, Grad-CAM heatmap overlay with a custom opacity slider (no expo-slider), and a 2D embedding scatter with neighbors.
-- Backend (Flask + PyTorch): runs a pretrained MobileNetV3, returns top-k, a transparent Grad-CAM heatmap PNG (base64), a 2D PCA embedding, and stores predictions for a mini confusion matrix.
+Repo Structure
+- `backend/`: Flask app, PyTorch model, SQLite persistence
+- `ml-explainer/`: Expo React Native client
 
-## Repo layout
+Quick Start
+- Backend
+  - Python 3.10+ recommended.
+  - Install deps: `python -m venv .venv && source .venv/bin/activate && pip install -r backend/requirements.txt`
+  - Run: `python backend/app.py` (defaults to `PORT=5050`)
+  - Health check: `curl http://localhost:5050/health` → `{ "ok": true }`
+- Mobile app
+  - Node 18+ and npm.
+  - `cd ml-explainer && npm install`
+  - Tell the app where your backend runs:
+    - Easiest: `EXPO_PUBLIC_API_URL="http://localhost:5050" npm run start`
+    - Physical device: use your computer’s LAN IP, e.g. `EXPO_PUBLIC_API_URL="http://192.168.1.20:5050" npm run start`
+    - Or edit `ml-explainer/app.json` → `expo.extra.apiUrl`
+  - Open in iOS/Android simulator or Expo Go and try: pick/take a photo → Analyze → see Results.
 
-- `mobile/` – Expo app (TypeScript)
-- `backend/` – Flask + PyTorch API
+Backend Details
+- Model
+  - TorchVision MobileNetV3 Small (pretrained). Deterministic CPU inference.
+- Explainability
+  - Top‑k: softmax over 1,000 ImageNet classes.
+  - Grad‑CAM: last conv block, resized and returned as a PNG data URI.
+  - Embedding: penultimate layer vector, reduced via PCA to 2D for recent window (default last 200).
+- Storage
+  - SQLite database at `backend/data.db` (configurable via `DB_PATH`). Each prediction row stores id, predicted label/prob, timestamp, optional user id, true label (if provided), raw embedding, 2D coords, and a tiny thumbnail (base64) for neighbor previews.
+- Environment variables
+  - `PORT` (default `5050`): Flask server port
+  - `DB_PATH` (default `data.db`): SQLite file path
+  - `EMBED_WINDOW` (default `200`): number of most recent predictions used to compute PCA window
 
-## Backend
+API Reference
+1) Analyze
+- Method/Path: `POST /analyze`
+- Content-Type: `multipart/form-data`
+- Body: `image` (file)
+- Response (200):
+  {
+    "topk": [{ "label": "Labrador retriever", "p": 0.62 }, ...],
+    "heatmap_png_b64": "data:image/png;base64,...",
+    "embedding": { "x": 0.12, "y": -0.44 },
+    "neighbors": [
+      { "x": 0.10, "y": -0.46, "thumb": "data:image/jpeg;base64,...", "label": "golden retriever" }
+    ],
+    "id": "pred_abc123",
+    "model": "mobilenet_v3_small@torchvision"
+  }
+- Example:
+  curl -F "image=@/path/to/photo.jpg" http://localhost:5050/analyze
 
-Prereqs: Python 3.10+, virtualenv recommended.
+2) Feedback
+- Method/Path: `POST /feedback`
+- Content-Type: `application/json`
+- Body: { "predictionId": "pred_abc123", "trueLabel": "golden retriever" }
+- Response (200): { "ok": true }
 
-1. Install deps
+3) Metrics Summary
+- Method/Path: `GET /metrics/summary`
+- Response (200):
+  {
+    "counts": { "dog": 12, "cat": 5, ... },
+    "confusion": [[...],[...]],
+    "classes": ["cat", "dog", ...]
+  }
 
-```bash
-cd backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-```
+4) Health
+- Method/Path: `GET /health`
+- Response (200): { "ok": true }
 
-2. Run the API
+Mobile App (Expo) Features
+- Screen A (Home):
+  - Pick from gallery or take a photo (expo-image-picker)
+  - Uploads to `/analyze`, then navigates to Results
+- Screen B (Results):
+  - Top‑k class bar chart
+  - Grad‑CAM overlay with toggle and opacity slider
+  - Embedding mini‑scatter (your point highlighted, neighbors shown)
+  - “Was this correct?” prompt → sends `/feedback`
+- Tab: Metrics
+  - Shows prediction counts and a small confusion matrix from `/metrics/summary`
 
-```bash
-python app.py
-# listens on http://localhost:5050
-```
+Configuration
+- `ml-explainer/lib/api.ts`: Reads API URL from `EXPO_PUBLIC_API_URL` or `app.json` → `expo.extra.apiUrl` (default `http://localhost:5050`).
+- If using a real device, ensure the backend is reachable from the device over LAN and use the computer’s IP (not `localhost`).
 
-Endpoints
+Troubleshooting
+- 400 from `/analyze`:
+  - Ensure request is `multipart/form-data` with key `image`. The mobile client handles this automatically; on web we convert the picked asset to a `File` before appending.
+  - Test with curl: `curl -F "image=@/path/to/photo.jpg" http://<host>:5050/analyze`
+- Timeouts or blank heatmap:
+  - First request loads the model; allow a few seconds on cold start.
+- Neighbors/embedding empty:
+  - Need at least 2+ predictions in the DB; PCA recomputes over the last `EMBED_WINDOW` rows.
 
-- `POST /analyze` (multipart/form-data: `image`):
-- Response:
+Development Notes
+- CORS is enabled in the backend for development.
+- Database is created automatically at startup; schema is in `backend/app.py`.
+- Model and Grad‑CAM utilities are in `backend/model.py`.
 
-```json
-{
-  "topk": [{"label": "Labrador retriever", "p": 0.62}, ...],
-  "heatmap_png_b64": "data:image/png;base64,...",  // transparent heatmap
-  "embedding": { "x": 0.12, "y": -0.44 },
-  "neighbors": [ {"x": 0.10, "y": -0.46, "thumb": "data:image/jpeg;base64,...", "label": "golden retriever" } ],
-  "id": "pred_abc123",
-  "model": "mobilenet_v3_small@torchvision"
-}
-```
-
-- `POST /feedback` JSON: `{ "predictionId": "pred_abc123", "trueLabel": "golden retriever" }`
-- `GET /metrics/summary` → `{ counts: {..}, confusion: [[..]], classes: [..] }`
-
-Notes
-
-- Uses SQLite (`data.db`) to store predictions, embeddings, thumbnails, and optional feedback (`true_label`).
-- Embedding 2D coords are computed with a simple PCA over the last N=200 predictions and stored, so neighbors can be returned quickly.
-- Grad-CAM is computed over MobileNetV3’s last conv block; the heatmap is returned as a transparent PNG sized to your image.
-
-## Mobile (Expo + TypeScript)
-
-Prereqs: Node 18+, Expo CLI (`npm i -g expo`), iOS/Android tooling as needed.
-
-1. Install deps
-
-```bash
-cd mobile
-npm install
-```
-
-2. Configure backend URL
-
-- The app defaults to `http://localhost:5001`.
-- For device testing, set `BACKEND_URL` env at build time or run the backend on your LAN IP and update the URL in `mobile/src/api.ts`.
-
-3. Run
-
-```bash
-npm start
-# then press i (iOS) or a (Android) or scan QR
-```
-
-Features in the app
-
-- Top-k bar chart: simple `View`-based bars with percentages and a hint text.
-- Grad-CAM overlay: original image with a transparent heatmap on top. Includes a toggle and a custom-built slider (`AlphaSlider`) — no `expo-slider` used.
-- Embedding scatter: 2D plot ([-1,1] range) of your point and 5 neighbors.
-- Feedback: "Was this correct?" yes/no. If no, enter a correct class; it is posted to `/feedback`.
-
-## Dev/Partner workflow ideas
-
-- You can change UI text/colors in `mobile/` (e.g., tweak palettes in components).
-- Backend logging/metrics adjustments live in `backend/app.py`.
-- Add a Learn screen in `mobile/` with short educational copy.
-
-## Notes & Limitations
-
-- First inference will download torchvision weights (network required).
-- PCA/Grad-CAM are CPU-friendly; no training is performed.
-- If you want a mini confusion matrix visual on mobile, fetch `GET /metrics/summary` and render a 5×5 grid.
-
-## License
-
-No explicit license provided; for course/demo use.
+License
+- Educational demo. No warranty; pretrained weights from TorchVision subject to their licenses.
 
