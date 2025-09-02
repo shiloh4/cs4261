@@ -25,6 +25,22 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Backend URL
+
+- The app defaults to `http://localhost:5050` for the backend. To override, set an environment variable before starting Expo:
+
+  ```bash
+  EXPO_PUBLIC_API_URL="https://your-backend.example.com" npm run start
+  ```
+
+- Alternatively, edit `ml-explainer/app.json` and update `expo.extra.apiUrl`.
+
+## Endpoints used
+
+- `POST /analyze` (multipart image) → top-k, heatmap base64, 2D embedding, neighbors, id, model
+- `POST /feedback` → `{ predictionId, trueLabel }`
+- `GET /metrics/summary` → `{ counts, confusion, classes }`
+
 ## Get a fresh project
 
 When you're ready, run:

@@ -35,6 +35,9 @@
         }
       ]
     ],
+    "extra": {
+      "apiUrl": "http://localhost:5050"
+    },
     "experiments": {
       "typedRoutes": true
     }
