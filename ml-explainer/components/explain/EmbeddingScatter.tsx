@@ -44,7 +44,19 @@ export default function EmbeddingScatter({ me, neighbors }: { me: Pt; neighbors:
           return <View style={[styles.dot, styles.me, { left: pos.left - 7, top: pos.top - 7 }]} />;
         })()}
       </View>
+      <View style={styles.legendRow}>
+        <View style={[styles.dot, styles.me, { width: 14, height: 14, borderRadius: 14, marginRight: 6 }]} />
+        <Text style={[styles.legendText, { marginRight: 12 }]}>Your photo</Text>
+        <View style={[styles.dot, styles.neighbor, { marginRight: 6 }]} />
+        <Text style={styles.legendText}>Similar recent images</Text>
+      </View>
       <Text style={styles.caption}>Points close together have similar visual features.</Text>
+      <View style={styles.infoBox}>
+        <Text style={styles.infoTitle}>How to read this</Text>
+        <Text style={styles.infoText}>• The model turns each image into a high-dimensional feature vector; we compress to 2D (PCA) for display.</Text>
+        <Text style={styles.infoText}>• Only distances matter — axes are arbitrary and have no unit or label.</Text>
+        <Text style={styles.infoText}>• Your point is highlighted; small dots are neighbors from your recent predictions.</Text>
+      </View>
     </View>
   );
 }
@@ -65,8 +77,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     position: 'absolute',
   },
-  neighbor: { backgroundColor: '#60a5fa' },
-  me: { backgroundColor: '#ef4444', width: 14, height: 14, borderRadius: 14 },
+  neighbor: { backgroundColor: '#22d3ee' },
+  me: { backgroundColor: '#6366f1', width: 14, height: 14, borderRadius: 14 },
   caption: { color: '#6b7280', fontSize: 12, marginTop: 6 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  legendText: { fontSize: 12, color: '#334155' },
+  infoBox: { marginTop: 8, backgroundColor: '#f8fafc', borderColor: '#e5e7eb', borderWidth: 1, borderRadius: 8, padding: 10, gap: 4 },
+  infoTitle: { fontWeight: '700' },
+  infoText: { color: '#475569', fontSize: 12 },
 });
-

@@ -1,13 +1,17 @@
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { analyzeImageAsync } from '@/lib/api';
 import { useAnalysis } from '@/context/AnalysisContext';
+import GradientButton from '@/components/ui/GradientButton';
+import ScreenTransition from '@/components/ui/ScreenTransition';
+import SwipePager from '@/components/ui/SwipePager';
 
 export default function HomeScreen() {
   const [imageUri, setImageUri] = useState<string | undefined>();
@@ -53,41 +57,56 @@ export default function HomeScreen() {
     }
   }
 
+  const navigation = useNavigation<any>();
+
   return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="title">VisionTags EDU</ThemedText>
-      <ThemedText>Classify a photo and see why.</ThemedText>
+    <SwipePager onSwipeLeft={() => navigation.navigate('explore')}>
+      <ScreenTransition direction="right">
+        <LinearGradient colors={["#0ea5e9", "#6366f1"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.hero}>
+          <Text style={styles.heroTitle}>VisionTags EDU</Text>
+          <Text style={styles.heroSubtitle}>Classify a photo — and learn why</Text>
+        </LinearGradient>
+        <ThemedView style={styles.container}>
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={styles.preview} contentFit="cover" />
+          ) : (
+            <View style={[styles.preview, styles.previewPlaceholder]}>
+              <Text style={{ color: '#94a3b8' }}>No image selected</Text>
+            </View>
+          )}
 
-      <View style={{ height: 16 }} />
-      {imageUri ? (
-        <Image source={{ uri: imageUri }} style={styles.preview} contentFit="cover" />
-      ) : (
-        <View style={[styles.preview, styles.previewPlaceholder]}>
-          <Text style={{ color: '#888' }}>No image selected</Text>
-        </View>
-      )}
+          <View style={styles.row}>
+            <GradientButton title="Camera" onPress={takePhoto} style={{ flex: 1 }} />
+            <GradientButton title="Gallery" onPress={pickFromLibrary} style={{ flex: 1 }} colors={["#10b981", "#22d3ee"]} />
+          </View>
 
-      <View style={styles.row}>
-        <Pressable style={styles.button} onPress={takePhoto}>
-          <Text style={styles.buttonText}>Camera</Text>
-        </Pressable>
-        <Pressable style={styles.button} onPress={pickFromLibrary}>
-          <Text style={styles.buttonText}>Gallery</Text>
-        </Pressable>
-      </View>
+          <GradientButton title={loading ? 'Analyzing…' : 'Analyze'} onPress={analyze} disabled={!imageUri || loading} />
 
-      <Pressable style={[styles.button, !imageUri && styles.buttonDisabled]} onPress={analyze} disabled={!imageUri || loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Analyze</Text>}
-      </Pressable>
-
-      <View style={{ height: 12 }} />
-      <ThemedText type="defaultSemiBold">Privacy</ThemedText>
-      <ThemedText>Your photo is sent to the backend for inference only.</ThemedText>
-    </ThemedView>
+          <View style={{ height: 12 }} />
+          <ThemedText type="defaultSemiBold">Privacy</ThemedText>
+          <ThemedText>Your photo is sent to the backend for inference only. We do not store or share your image.</ThemedText>
+        </ThemedView>
+      </ScreenTransition>
+    </SwipePager>
   );
 }
 
 const styles = StyleSheet.create({
+  hero: {
+    paddingTop: 56,
+    paddingBottom: 24,
+    paddingHorizontal: 16,
+  },
+  heroTitle: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  heroSubtitle: {
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: 4,
+  },
   container: {
     flex: 1,
     padding: 16,
@@ -108,19 +127,5 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 12,
     marginBottom: 8,
-  },
-  button: {
-    flex: 1,
-    backgroundColor: '#ffa5a4',
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '600',
   },
 });

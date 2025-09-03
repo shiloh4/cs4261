@@ -53,20 +53,32 @@ export async function analyzeImageAsync(uri: string, user?: string): Promise<Ana
   return (await res.json()) as AnalysisResponse;
 }
 
-export async function sendFeedbackAsync(predictionId: string, trueLabel: string) {
-  const res = await fetch(`${API_URL}/feedback`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({ predictionId, trueLabel }),
-  });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Feedback failed: ${res.status} ${txt}`);
+export async function sendFeedbackAsync(predictionId: string, trueLabel: string, timeoutMs = 10000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${API_URL}/feedback`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ predictionId, trueLabel }),
+      signal: ctrl.signal,
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`Feedback failed: ${res.status} ${txt}`);
+    }
+    return res.json();
+  } catch (e: any) {
+    if (e?.name === 'AbortError') {
+      throw new Error('Feedback request timed out. Check your connection and try again.');
+    }
+    throw e;
+  } finally {
+    clearTimeout(t);
   }
-  return res.json();
 }
 
 export type MetricsSummary = {

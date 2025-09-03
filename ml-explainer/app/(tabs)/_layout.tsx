@@ -15,15 +15,31 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarInactiveTintColor: Colors[colorScheme ?? 'light'].tabIconDefault,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarShowLabel: false,
         tabBarBackground: TabBarBackground,
         tabBarStyle: Platform.select({
           ios: {
             // Use a transparent background on iOS to show the blur effect
             position: 'absolute',
+            height: 64,
+            borderRadius: 24,
+            marginHorizontal: 16,
+            marginBottom: 12,
+            paddingBottom: 8,
+            paddingTop: 8,
           },
-          default: {},
+          default: {
+            height: 64,
+            borderRadius: 24,
+            marginHorizontal: 16,
+            marginBottom: 12,
+            paddingBottom: 8,
+            paddingTop: 8,
+            backgroundColor: 'rgba(255,255,255,0.9)',
+          },
         }),
       }}>
       <Tabs.Screen
@@ -37,7 +53,7 @@ export default function TabLayout() {
         name="explore"
         options={{
           title: 'Metrics',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
         }}
       />
     </Tabs>
