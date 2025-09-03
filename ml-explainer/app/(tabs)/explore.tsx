@@ -155,7 +155,7 @@ function ConfusionMatrix({ classes, matrix }: { classes: string[]; matrix: numbe
                     const norm = maxVal > 0 ? val / maxVal : 0;
                     const alpha = val === 0 ? 0 : 0.15 + 0.75 * norm; // stronger contrast for low non-zero
                     const bg = `rgba(99,102,241,${alpha})`;
-                    const textColor = alpha > 0.45 ? '#fff' : '#0f172a';
+                    const textColor = '#fff';
                     return (
                       <View
                         key={`cell-${i}-${j}`}
