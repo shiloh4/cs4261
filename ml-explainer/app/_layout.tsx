@@ -24,8 +24,23 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <AnalysisProvider>
           <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="result" options={{ title: 'Results' }} />
+            <Stack.Screen
+              name="(tabs)"
+              options={{
+                headerShown: false,
+                // Provide a friendly back label for screens pushed from tabs
+                title: 'Back',
+                headerBackTitle: 'Back',
+              }}
+            />
+            <Stack.Screen
+              name="result"
+              options={{
+                title: 'Results',
+                headerBackTitle: 'Back',
+                headerBackTitleVisible: true,
+              }}
+            />
             <Stack.Screen name="+not-found" />
           </Stack>
         </AnalysisProvider>

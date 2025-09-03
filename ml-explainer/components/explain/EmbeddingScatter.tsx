@@ -4,18 +4,48 @@ import type { Neighbor } from '@/lib/api';
 
 type Pt = { x: number; y: number };
 
-function normalize(points: Pt[]): { minX: number; maxX: number; minY: number; maxY: number } {
+// Robust, square bounds so clusters aren't smashed into a corner by outliers.
+function quantile(values: number[], q: number) {
+  if (!values.length) return 0;
+  const xs = [...values].sort((a, b) => a - b);
+  const pos = (xs.length - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  const next = xs[base + 1];
+  return next !== undefined ? xs[base] + rest * (next - xs[base]) : xs[base];
+}
+
+function robustSquareBounds(points: Pt[]) {
   const xs = points.map((p) => p.x);
   const ys = points.map((p) => p.y);
-  return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+  const xLo = quantile(xs, 0.05);
+  const xHi = quantile(xs, 0.95);
+  const yLo = quantile(ys, 0.05);
+  const yHi = quantile(ys, 0.95);
+  const cx = (xLo + xHi) / 2;
+  const cy = (yLo + yHi) / 2;
+  // Use the larger span to enforce equal aspect; add slight padding.
+  const half = Math.max(xHi - xLo, yHi - yLo) / 2 || 1;
+  const pad = half * 0.05; // 5% breathing room
+  return { minX: cx - half - pad, maxX: cx + half + pad, minY: cy - half - pad, maxY: cy + half + pad };
 }
 
 export default function EmbeddingScatter({ me, neighbors }: { me: Pt; neighbors: Neighbor[] }) {
   const all = useMemo(() => [me, ...neighbors.map((n) => ({ x: n.x, y: n.y }))], [me, neighbors]);
-  const { minX, maxX, minY, maxY } = useMemo(() => normalize(all), [all]);
+  // Compute robust, square bounds so outliers don't squash the cluster.
+  const { minX, maxX, minY, maxY } = useMemo(() => robustSquareBounds(all), [all]);
   const pad = 8;
 
-  function toPx(p: Pt, size: number) {
+  function jitter(seed: number) {
+    // Deterministic tiny jitter based on a seed to separate near-overlapping dots.
+    const s1 = Math.sin(seed * 12.9898) * 43758.5453;
+    const s2 = Math.sin((seed + 1) * 78.233) * 96234.3456;
+    const jx = (s1 - Math.floor(s1)) - 0.5; // [-0.5, 0.5)
+    const jy = (s2 - Math.floor(s2)) - 0.5;
+    return { jx, jy };
+  }
+
+  function toPx(p: Pt, size: number, seed?: number) {
     const w = size - 2 * pad;
     const h = size - 2 * pad;
     const dx = maxX - minX || 1;
@@ -23,7 +53,18 @@ export default function EmbeddingScatter({ me, neighbors }: { me: Pt; neighbors:
     const nx = (p.x - minX) / dx;
     const ny = (p.y - minY) / dy;
     // Flip y so up is positive visually
-    return { left: pad + nx * w, top: pad + (1 - ny) * h };
+    let left = pad + nx * w;
+    let top = pad + (1 - ny) * h;
+    if (seed !== undefined) {
+      const { jx, jy } = jitter(seed);
+      const amp = Math.max(2, size * 0.008); // px amplitude
+      left += jx * amp * 2;
+      top += jy * amp * 2;
+    }
+    // Clamp to the box to avoid overflow
+    left = Math.min(size - pad, Math.max(pad, left));
+    top = Math.min(size - pad, Math.max(pad, top));
+    return { left, top };
   }
 
   const size = 220;
@@ -35,13 +76,13 @@ export default function EmbeddingScatter({ me, neighbors }: { me: Pt; neighbors:
         accessibilityLabel="Embedding scatter plot">
         {/* neighbors */}
         {neighbors.map((n, idx) => {
-          const pos = toPx(n, size);
-          return <View key={idx} style={[styles.dot, styles.neighbor, { left: pos.left - 4, top: pos.top - 4 }]} />;
+          const pos = toPx(n, size, idx + 1);
+          return <View key={idx} style={[styles.dot, styles.point, styles.neighbor, { left: pos.left - 4, top: pos.top - 4 }]} />;
         })}
         {/* me */}
         {(() => {
           const pos = toPx(me, size);
-          return <View style={[styles.dot, styles.me, { left: pos.left - 7, top: pos.top - 7 }]} />;
+          return <View style={[styles.dot, styles.point, styles.me, { left: pos.left - 7, top: pos.top - 7 }]} />;
         })()}
       </View>
       <View style={styles.legendRow}>
@@ -75,8 +116,8 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 8,
-    position: 'absolute',
   },
+  point: { position: 'absolute' },
   neighbor: { backgroundColor: '#22d3ee' },
   me: { backgroundColor: '#6366f1', width: 14, height: 14, borderRadius: 14 },
   caption: { color: '#6b7280', fontSize: 12, marginTop: 6 },
