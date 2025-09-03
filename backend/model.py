@@ -1,4 +1,5 @@
 import io
+import os
 import uuid
 from typing import List, Tuple, Dict, Any
 
@@ -9,13 +10,66 @@ import torch.nn as nn
 import torchvision as tv
 
 
-# Load pretrained MobileNetV3 Small
-_weights = tv.models.MobileNet_V3_Small_Weights.DEFAULT
-model = tv.models.mobilenet_v3_small(weights=_weights)
-model.eval()
+# -----------------------------------------------------------------------------
+# Model loader (env-configurable)
+# -----------------------------------------------------------------------------
 
-preproc = _weights.transforms()
-class_names: List[str] = _weights.meta["categories"]
+MODEL_NAME = os.environ.get("MODEL_NAME", "resnet50").lower()
+
+
+def _build_model(name: str):
+    name = name.lower()
+    if name in {"mobilenet_v3_small", "mnet_v3_small", "mnet_small", "mobilenet_small"}:
+        weights = tv.models.MobileNet_V3_Small_Weights.DEFAULT
+        m = tv.models.mobilenet_v3_small(weights=weights)
+        preproc = weights.transforms()
+        classes = weights.meta["categories"]
+        target_layer = m.features[-1]
+        emb_module = m.classifier[-1]
+    elif name in {"mobilenet_v3_large", "mnet_v3_large", "mobilenet_large", "mnet_large"}:
+        weights = tv.models.MobileNet_V3_Large_Weights.DEFAULT
+        m = tv.models.mobilenet_v3_large(weights=weights)
+        preproc = weights.transforms()
+        classes = weights.meta["categories"]
+        target_layer = m.features[-1]
+        emb_module = m.classifier[-1]
+    elif name in {"resnet50", "resnet"}:
+        weights = tv.models.ResNet50_Weights.DEFAULT
+        m = tv.models.resnet50(weights=weights)
+        preproc = weights.transforms()
+        classes = weights.meta["categories"]
+        target_layer = m.layer4[-1]
+        emb_module = m.fc
+    elif name in {"efficientnet_b0", "effb0", "efficientnet0"}:
+        weights = tv.models.EfficientNet_B0_Weights.DEFAULT
+        m = tv.models.efficientnet_b0(weights=weights)
+        preproc = weights.transforms()
+        classes = weights.meta["categories"]
+        target_layer = m.features[-1]
+        emb_module = m.classifier[-1]
+    elif name in {"efficientnet_b3", "effb3", "efficientnet3"}:
+        weights = tv.models.EfficientNet_B3_Weights.DEFAULT
+        m = tv.models.efficientnet_b3(weights=weights)
+        preproc = weights.transforms()
+        classes = weights.meta["categories"]
+        target_layer = m.features[-1]
+        emb_module = m.classifier[-1]
+    elif name in {"convnext_tiny", "convnext"}:
+        weights = tv.models.ConvNeXt_Tiny_Weights.DEFAULT
+        m = tv.models.convnext_tiny(weights=weights)
+        preproc = weights.transforms()
+        classes = weights.meta["categories"]
+        # Last stage output is fine for CAM-like visualization
+        target_layer = m.features[-1]
+        emb_module = m.classifier[-1]  # Linear
+    else:
+        raise ValueError(f"Unsupported MODEL_NAME '{name}'")
+
+    m.eval()
+    return m, preproc, classes, target_layer, emb_module
+
+
+model, preproc, class_names, _target_layer, _emb_module = _build_model(MODEL_NAME)
 
 
 @torch.no_grad()
@@ -66,8 +120,7 @@ class GradCAM:
         return cam
 
 
-# Hook the last conv block
-_target_layer = model.features[-1]
+# Hook the selected target layer for Grad-CAM
 grad_cam = GradCAM(model, _target_layer)
 
 
@@ -96,13 +149,13 @@ def compute_heatmap_overlay(pil_img: Image.Image, overlay_alpha: float = 0.8) ->
 
 
 def get_embedding(pil_img: Image.Image) -> np.ndarray:
-    # Capture input to final linear layer as embedding
+    # Capture input to final classifier layer as embedding (works across supported models)
     feats: Dict[str, Any] = {}
 
     def hook(module, input, output):
-        feats['emb'] = input[0].detach().cpu().numpy()  # [1, D]
+        feats['emb'] = input[0].detach().cpu().numpy()  # [N, D]
 
-    h = model.classifier[-1].register_forward_hook(hook)
+    h = _emb_module.register_forward_hook(hook)
     with torch.no_grad():
         x = preproc(pil_img).unsqueeze(0)
         _ = model(x)

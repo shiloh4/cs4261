@@ -18,6 +18,7 @@ from model import (
     make_thumb,
     new_prediction_id,
     class_names,
+    MODEL_NAME,
 )
 
 
@@ -110,33 +111,58 @@ def last_n_predictions(n: int) -> List[sqlite3.Row]:
     return list(reversed(rows))  # chronological order
 
 
+def _parse_embedding_str(s: str) -> np.ndarray:
+    return np.array(list(map(float, s.split(','))), dtype=float)
+
+
+def _emb_len(row: sqlite3.Row) -> int:
+    try:
+        return len(row['embedding'].split(',')) if row['embedding'] else 0
+    except Exception:
+        return 0
+
+
 def build_neighbors(pid: str, k: int = 5):
     rows = last_n_predictions(EMBED_WINDOW)
-    idx_map = {r['id']: i for i, r in enumerate(rows)}
-    if pid not in idx_map:
+    row_map = {r['id']: r for r in rows}
+    me = row_map.get(pid)
+    if me is None:
         return []
-    # Ensure we have 2D coords; if missing, recompute PCA for window
-    if any(r['emb2d_x'] is None or r['emb2d_y'] is None for r in rows):
-        vecs = [np.array(list(map(float, r['embedding'].split(',')))) for r in rows]
+
+    target_dim = _emb_len(me)
+    rows_dim = [r for r in rows if _emb_len(r) == target_dim]
+    if len(rows_dim) == 0:
+        return []
+
+    # If any missing coords among this dimension subset, recompute PCA just for them
+    if any(r['emb2d_x'] is None or r['emb2d_y'] is None for r in rows_dim):
+        vecs = [_parse_embedding_str(r['embedding']) for r in rows_dim]
         Z = pca2d(vecs)
-        update_emb2d([r['id'] for r in rows], Z)
+        update_emb2d([r['id'] for r in rows_dim], Z)
         rows = last_n_predictions(EMBED_WINDOW)
-    i = idx_map[pid]
-    xs = np.array([r['emb2d_x'] for r in rows], dtype=float)
-    ys = np.array([r['emb2d_y'] for r in rows], dtype=float)
+        row_map = {r['id']: r for r in rows}
+        rows_dim = [row_map[r['id']] for r in rows_dim if r['id'] in row_map]
+
+    # Build neighbor list within same-dimension subset
+    idx_map = {r['id']: i for i, r in enumerate(rows_dim)}
+    i = idx_map.get(pid)
+    if i is None:
+        return []
+    xs = np.array([r['emb2d_x'] for r in rows_dim], dtype=float)
+    ys = np.array([r['emb2d_y'] for r in rows_dim], dtype=float)
     dx = xs - xs[i]
     dy = ys - ys[i]
     dist = np.sqrt(dx * dx + dy * dy)
     order = np.argsort(dist)
     out = []
     for j in order:
-        if rows[j]['id'] == pid:
+        if rows_dim[j]['id'] == pid:
             continue
         out.append({
             'x': float(xs[j]),
             'y': float(ys[j]),
-            'thumb': rows[j]['thumb_b64'],
-            'label': rows[j]['predicted_label'],
+            'thumb': rows_dim[j]['thumb_b64'],
+            'label': rows_dim[j]['predicted_label'],
         })
         if len(out) >= k:
             break
@@ -215,11 +241,14 @@ def analyze():
         user=request.headers.get('X-User') or None,
     )
 
-    # Recompute PCA for last window (including this one)
+    # Recompute PCA for last window (including this one), but only for rows with same embedding dim
     rows = last_n_predictions(EMBED_WINDOW)
-    vecs = [np.array(list(map(float, r['embedding'].split(',')))) for r in rows]
-    Z = pca2d(vecs)
-    update_emb2d([r['id'] for r in rows], Z)
+    target_dim = len(emb)
+    rows_dim = [r for r in rows if _emb_len(r) == target_dim]
+    if len(rows_dim) >= 1:
+        vecs = [_parse_embedding_str(r['embedding']) for r in rows_dim]
+        Z = pca2d(vecs)
+        update_emb2d([r['id'] for r in rows_dim], Z)
     # Fetch updated row for self
     rows = last_n_predictions(EMBED_WINDOW)
     row_map = {r['id']: r for r in rows}
@@ -232,7 +261,7 @@ def analyze():
         'embedding': {'x': float(me['emb2d_x']), 'y': float(me['emb2d_y'])},
         'neighbors': neighbors,
         'id': pid,
-        'model': 'mobilenet_v3_small@torchvision',
+        'model': f'{MODEL_NAME}@torchvision',
     }
     return jsonify(resp)
 
@@ -260,4 +289,3 @@ def metrics_summary():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', '5050')))
-

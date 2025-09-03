@@ -86,6 +86,13 @@ Alternatively, edit `ml-explainer/app.json` and set `expo.extra.apiUrl`.
 - `PORT` (default `5050`): Flask server port
 - `DB_PATH` (default `data.db`): SQLite file path
 - `EMBED_WINDOW` (default `200`): size of the recent window used for PCA
+- `MODEL_NAME` (default `resnet50`): backbone to use. Supported: `resnet50`, `mobilenet_v3_large`, `mobilenet_v3_small`, `efficientnet_b0`, `efficientnet_b3`, `convnext_tiny`.
+
+Example:
+
+```bash
+MODEL_NAME=resnet50 python backend/app.py
+```
 
 ## API Reference
 
@@ -195,4 +202,3 @@ curl -F "image=@/path/to/photo.jpg" http://localhost:5050/analyze
 ## License
 
 - Educational demo. No warranty; pretrained weights from TorchVision subject to their licenses.
-

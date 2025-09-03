@@ -84,8 +84,8 @@ function ConfusionMatrix({ classes, matrix }: { classes: string[]; matrix: numbe
 
 const styles = StyleSheet.create({
   titleContainer: { flexDirection: 'row', gap: 8 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginVertical: 8 },
-  countRow: { flexDirection: 'row', gap: 8 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', marginVertical: 8, color: '#fff' },
+  countRow: { flexDirection: 'row', gap: 8, color: '#fff' },
   matrix: {
     flexDirection: 'row',
     flexWrap: 'wrap',
