@@ -35,7 +35,7 @@ export default function TopKBars({ items }: { items: TopKItem[] }) {
           Predictions are drawn from the ImageNet-1k label set. If your photo isn't one of those
           categories, the model may guess the closest visual match and be unreliable.
         </Text>
-        <ExternalLink href="https://www.image-net.org/">
+        <ExternalLink href="https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/">
           <Text style={styles.link}>Learn more about ImageNet</Text>
         </ExternalLink>
       </View>

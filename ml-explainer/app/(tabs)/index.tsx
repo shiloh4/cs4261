@@ -10,6 +10,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { analyzeImageAsync } from '@/lib/api';
 import { useAnalysis } from '@/context/AnalysisContext';
 import GradientButton from '@/components/ui/GradientButton';
+import { Image as ExpoImage } from 'expo-image';
 import ScreenTransition from '@/components/ui/ScreenTransition';
 import SwipePager from '@/components/ui/SwipePager';
 
@@ -80,7 +81,20 @@ export default function HomeScreen() {
             <GradientButton title="Gallery" onPress={pickFromLibrary} style={{ flex: 1 }} colors={["#10b981", "#22d3ee"]} />
           </View>
 
-          <GradientButton title={loading ? 'Analyzing…' : 'Analyze'} onPress={analyze} disabled={!imageUri || loading} />
+        <GradientButton onPress={analyze} disabled={!imageUri || loading} colors={['#F5A434', '#D8457B']}>
+          {loading ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <ExpoImage
+                source={require('@/assets/Leaf scanning.gif')}
+                style={{ width: 28, height: 28, borderRadius: 4 }}
+                contentFit="contain"
+              />
+              <Text style={{ color: '#fff', fontWeight: '700' }}>Analyzing…</Text>
+            </View>
+          ) : (
+            <Text style={{ color: '#fff', fontWeight: '700' }}>Analyze</Text>
+          )}
+        </GradientButton>
 
           <View style={{ height: 12 }} />
           <ThemedText type="defaultSemiBold">Privacy</ThemedText>

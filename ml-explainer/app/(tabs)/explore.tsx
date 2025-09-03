@@ -43,32 +43,32 @@ export default function MetricsScreen() {
         {error && <Text style={{ color: 'red' }}>{error}</Text>}
         {data && (
           <View style={{ gap: 16 }}>
-          <View>
-            <Text style={styles.sectionTitle}>Prediction counts</Text>
-            {Object.entries(data.counts).map(([label, n]) => (
-                <View key={label} style={styles.countRow}>
-                <Text style={{ flex: 1, color: '#fff' }}>{label}</Text>
-                <Text style={{ width: 40, textAlign: 'right', color: '#fff' }}>{n}</Text>
-                </View>
-            ))}
-          </View>
-          <View>
-            <View style={styles.rowBetween}>
-              <Text style={styles.sectionTitle}>Confusion (last N)</Text>
-              <Pressable onPress={() => setShowInfo((s) => !s)} accessibilityLabel="About confusion matrix" hitSlop={8}>
-                <Ionicons name="information-circle-outline" size={20} color="#e2e8f0" />
-              </Pressable>
+            <View>
+              <Text style={styles.sectionTitle}>Prediction counts</Text>
+              {Object.entries(data.counts).map(([label, n]) => (
+                  <View key={label} style={styles.countRow}>
+                  <Text style={{ flex: 1, color: '#fff' }}>{label}</Text>
+                  <Text style={{ width: 40, textAlign: 'right', color: '#fff' }}>{n}</Text>
+                  </View>
+              ))}
             </View>
-            {showInfo && (
-              <View style={styles.infoBox}>
-                <Text style={styles.infoTitle}>What is this?</Text>
-                <Text style={styles.infoText}>• Rows are true labels (from your feedback). Columns are predicted labels.</Text>
-                <Text style={styles.infoText}>• Each cell counts how often a row label was predicted as the column label.</Text>
-                <Text style={styles.infoText}>• Computed over your recent predictions; darker cells = more examples.</Text>
+            <View>
+              <View style={styles.rowBetween}>
+                <Text style={styles.sectionTitle}>Confusion (last N)</Text>
+                <Pressable onPress={() => setShowInfo((s) => !s)} accessibilityLabel="About confusion matrix" hitSlop={8}>
+                  <Ionicons name="information-circle-outline" size={20} color="#e2e8f0" />
+                </Pressable>
               </View>
-            )}
-            <ConfusionMatrix classes={data.classes} matrix={data.confusion} />
-          </View>
+              {showInfo && (
+                <View style={styles.infoBox}>
+                  <Text style={styles.infoTitle}>What is this?</Text>
+                  <Text style={styles.infoText}>• Rows are true labels (from your feedback). Columns are predicted labels.</Text>
+                  <Text style={styles.infoText}>• Each cell counts how often a row label was predicted as the column label.</Text>
+                  <Text style={styles.infoText}>• Computed over your recent predictions; darker cells = more examples.</Text>
+                </View>
+              )}
+              <ConfusionMatrix classes={data.classes} matrix={data.confusion} />
+            </View>
           </View>
         )}
       </ScreenTransition>
