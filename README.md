@@ -19,8 +19,8 @@
 2) Install dependencies:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
+python -m venv backend/.venv
+source backend/.venv/bin/activate
 pip install -r backend/requirements.txt
 ```
 
