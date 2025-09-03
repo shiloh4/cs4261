@@ -2,7 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useNavigation, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View, Modal, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { ThemedText } from '@/components/ThemedText';
@@ -17,6 +17,8 @@ import SwipePager from '@/components/ui/SwipePager';
 export default function HomeScreen() {
   const [imageUri, setImageUri] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
+  const [modelPickerVisible, setModelPickerVisible] = useState(false);
+  const [model, setModel] = useState<string>('resnet50');
   const router = useRouter();
   const { setAnalysis } = useAnalysis();
 
@@ -48,7 +50,7 @@ export default function HomeScreen() {
     if (!imageUri) return;
     try {
       setLoading(true);
-      const result = await analyzeImageAsync(imageUri);
+      const result = await analyzeImageAsync(imageUri, { model });
       setAnalysis(imageUri, result);
       router.push('/result');
     } catch (e: any) {
@@ -57,6 +59,15 @@ export default function HomeScreen() {
       setLoading(false);
     }
   }
+
+  const availableModels: { key: string; label: string }[] = [
+    { key: 'resnet50', label: 'ResNet50 (default)' },
+    { key: 'mobilenet_v3_large', label: 'MobileNetV3 Large' },
+    { key: 'mobilenet_v3_small', label: 'MobileNetV3 Small' },
+    { key: 'efficientnet_b0', label: 'EfficientNet-B0' },
+    { key: 'efficientnet_b3', label: 'EfficientNet-B3' },
+    { key: 'convnext_tiny', label: 'ConvNeXt-Tiny' },
+  ];
 
   const navigation = useNavigation<any>();
 
@@ -75,6 +86,16 @@ export default function HomeScreen() {
               <Text style={{ color: '#94a3b8' }}>No image selected</Text>
             </View>
           )}
+
+          <View style={styles.modelRow}>
+            <Text style={styles.modelLabel}>Model</Text>
+            <TouchableOpacity style={styles.modelPill} onPress={() => setModelPickerVisible(true)}>
+              <Text style={styles.modelPillText} numberOfLines={1}>
+                {availableModels.find((m) => m.key === model)?.label || model}
+              </Text>
+              <Text style={styles.modelPillChevron}>▾</Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.row}>
             <GradientButton title="Camera" onPress={takePhoto} style={{ flex: 1 }} />
@@ -95,6 +116,31 @@ export default function HomeScreen() {
             <Text style={{ color: '#fff', fontWeight: '700' }}>Analyze</Text>
           )}
         </GradientButton>
+
+        <Modal transparent animationType="fade" visible={modelPickerVisible} onRequestClose={() => setModelPickerVisible(false)}>
+          <View style={styles.modalBg}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>Choose model</Text>
+              {availableModels.map((m) => (
+                <TouchableOpacity
+                  key={m.key}
+                  style={[styles.modelOption, model === m.key && styles.modelOptionActive]}
+                  onPress={() => {
+                    setModel(m.key);
+                    setModelPickerVisible(false);
+                  }}
+                >
+                  <Text style={[styles.modelOptionText, model === m.key && styles.modelOptionTextActive]}>
+                    {m.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity style={[styles.modelOption, { marginTop: 8 }]} onPress={() => setModelPickerVisible(false)}>
+                <Text style={styles.modelOptionText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
           <View style={{ height: 12 }} />
           <ThemedText type="defaultSemiBold">Privacy</ThemedText>
@@ -142,4 +188,16 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 8,
   },
+  modelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+  modelLabel: { color: '#334155', fontWeight: '600' },
+  modelPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#f1f5f9', borderRadius: 999 },
+  modelPillText: { color: '#0f172a', maxWidth: 220 },
+  modelPillChevron: { color: '#64748b' },
+  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  modalCard: { width: '90%', backgroundColor: '#fff', padding: 16, borderRadius: 12 },
+  modalTitle: { fontSize: 16, fontWeight: '800', marginBottom: 10 },
+  modelOption: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#f8fafc', marginTop: 6 },
+  modelOptionActive: { backgroundColor: '#e0e7ff' },
+  modelOptionText: { color: '#0f172a' },
+  modelOptionTextActive: { fontWeight: '700' },
 });

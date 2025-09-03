@@ -176,7 +176,7 @@ function ConfusionMatrix({ classes, matrix }: { classes: string[]; matrix: numbe
 }
 
 const styles = StyleSheet.create({
-  hero: { paddingTop: 36, paddingBottom: 16, paddingHorizontal: 16 },
+  hero: { paddingTop: 36, paddingBottom: 16, paddingHorizontal: 16, borderRadius: 12 },
   heroTitle: { color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: 0.5 },
   heroSubtitle: { color: 'rgba(255,255,255,0.9)', marginTop: 4 },
   titleContainer: { flexDirection: 'row', gap: 8 },

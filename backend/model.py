@@ -123,6 +123,26 @@ class GradCAM:
 # Hook the selected target layer for Grad-CAM
 grad_cam = GradCAM(model, _target_layer)
 
+# -----------------------------------------------------------------------------
+# Multi-model cache and helpers (for per-request model selection)
+# -----------------------------------------------------------------------------
+_MODEL_CACHE: Dict[str, Dict[str, Any]] = {}
+
+
+def get_stack(name: str) -> Dict[str, Any]:
+    key = (name or MODEL_NAME).lower()
+    if key not in _MODEL_CACHE:
+        m, pp, classes, tgt, emb = _build_model(key)
+        _MODEL_CACHE[key] = {
+            'name': key,
+            'model': m,
+            'preproc': pp,
+            'class_names': classes,
+            'grad_cam': GradCAM(m, tgt),
+            'emb_module': emb,
+        }
+    return _MODEL_CACHE[key]
+
 
 def make_heatmap_rgba(cam: np.ndarray, alpha: float = 0.8) -> Image.Image:
     # cam: 0..1 -> red colormap with variable alpha
@@ -148,6 +168,20 @@ def compute_heatmap_overlay(pil_img: Image.Image, overlay_alpha: float = 0.8) ->
     return heat_rgba
 
 
+def compute_heatmap_overlay_stack(stack: Dict[str, Any], pil_img: Image.Image, overlay_alpha: float = 0.8) -> Image.Image:
+    pp = stack['preproc']
+    m: nn.Module = stack['model']
+    gc: GradCAM = stack['grad_cam']
+    x = pp(pil_img).unsqueeze(0)
+    with torch.enable_grad():
+        x.requires_grad_(True)
+        logits = m(x)
+        class_idx = int(logits.argmax(dim=1))
+        cam = gc.generate(x, class_idx)
+    heat_rgba = make_heatmap_rgba(cam, alpha=overlay_alpha).resize(pil_img.size, resample=Image.BILINEAR)
+    return heat_rgba
+
+
 def get_embedding(pil_img: Image.Image) -> np.ndarray:
     # Capture input to final classifier layer as embedding (works across supported models)
     feats: Dict[str, Any] = {}
@@ -164,17 +198,52 @@ def get_embedding(pil_img: Image.Image) -> np.ndarray:
     return emb  # shape [D]
 
 
+def get_embedding_stack(stack: Dict[str, Any], pil_img: Image.Image) -> np.ndarray:
+    feats: Dict[str, Any] = {}
+
+    def hook(module, input, output):
+        feats['emb'] = input[0].detach().cpu().numpy()
+
+    emb_module: nn.Module = stack['emb_module']
+    m: nn.Module = stack['model']
+    pp = stack['preproc']
+    h = emb_module.register_forward_hook(hook)
+    with torch.no_grad():
+        x = pp(pil_img).unsqueeze(0)
+        _ = m(x)
+    h.remove()
+    emb = feats['emb'].squeeze(0)
+    return emb
+
+
 def pca2d(vectors: List[np.ndarray]) -> np.ndarray:
     # Simple PCA to 2D
     X = np.stack(vectors, axis=0)  # [N, D]
     X = X - X.mean(axis=0, keepdims=True)
     # Covariance via SVD: X = U S Vt; top-2 PCs are first two rows of Vt
     U, S, Vt = np.linalg.svd(X, full_matrices=False)
-    V2 = Vt[:2].T  # [D,2]
-    Z = X @ V2     # [N,2]
+    ncomp = 2 if Vt.shape[0] >= 2 else 1
+    V2 = Vt[:ncomp].T  # [D,ncomp]
+    Z = X @ V2     # [N,ncomp]
+    if Z.ndim == 1:
+        Z = Z[:, None]
+    if Z.shape[1] == 1:
+        Z = np.concatenate([Z, np.zeros((Z.shape[0], 1), dtype=Z.dtype)], axis=1)
     # Normalize roughly to [-1,1]
     Z = Z / (np.max(np.abs(Z), axis=0, keepdims=True) + 1e-8)
     return Z
+
+
+@torch.no_grad()
+def predict_topk_stack(stack: Dict[str, Any], pil_img: Image.Image, k: int = 5) -> List[Tuple[str, float]]:
+    pp = stack['preproc']
+    m: nn.Module = stack['model']
+    class_names_: List[str] = stack['class_names']
+    x = pp(pil_img).unsqueeze(0)
+    logits = m(x)
+    probs = torch.softmax(logits, dim=1)[0]
+    vals, idxs = probs.topk(k)
+    return [(class_names_[int(i)], float(v)) for v, i in zip(vals, idxs)]
 
 
 def pil_to_base64_datauri(pil_img: Image.Image, fmt: str = 'PNG', quality: int = 85) -> str:

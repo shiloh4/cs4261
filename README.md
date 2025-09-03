@@ -94,6 +94,16 @@ Example:
 MODEL_NAME=resnet50 python backend/app.py
 ```
 
+### Models Used
+
+- Default: `ResNet50` (robust baseline, good accuracy)
+- Alternatives (switch via `MODEL_NAME`):
+  - `mobilenet_v3_large` / `mobilenet_v3_small` (lighter, faster)
+  - `efficientnet_b0` / `efficientnet_b3` (strong accuracy per compute)
+  - `convnext_tiny` (modern convnet, heavier)
+
+Grad‑CAM and embeddings are wired for each of these models out of the box.
+
 ## API Reference
 
 ### POST /analyze
@@ -179,6 +189,48 @@ curl -F "image=@/path/to/photo.jpg" http://localhost:5050/analyze
 
 - `ml-explainer/lib/api.ts` reads the API URL from `EXPO_PUBLIC_API_URL` or from `app.json` (`expo.extra.apiUrl`). Default is `http://localhost:5050`.
 - On a real device, ensure the backend is reachable over LAN and use the computer’s IP, not `localhost`.
+
+### Frontend .env setup
+
+You can configure the mobile app to talk to your backend via a `.env` file (Expo loads `EXPO_PUBLIC_*` variables during bundling):
+
+1) Create `ml-explainer/.env` with:
+
+```env
+# Replace with your computer's LAN IP if testing on a device
+EXPO_PUBLIC_API_URL=http://192.168.1.20:5050
+```
+
+2) Start the app (Expo will read the .env):
+
+```bash
+cd ml-explainer
+npm run start
+```
+
+Alternatively, set it inline without a file:
+
+```bash
+EXPO_PUBLIC_API_URL=http://192.168.1.20:5050 npm run start
+```
+
+Or set it in config:
+
+- Edit `ml-explainer/app.json` → `expo.extra.apiUrl`.
+
+### Finding your device’s LAN IP
+
+Use this IP for `EXPO_PUBLIC_API_URL` when testing on a phone with Expo Go.
+
+- macOS
+  - System Settings → Network → Wi‑Fi → details → IP Address
+  - Or in Terminal: `ipconfig getifaddr en0` (Wi‑Fi) or `ipconfig getifaddr en1`
+- Windows
+  - PowerShell: `ipconfig` → find “IPv4 Address” under your active adapter
+- Linux
+  - Terminal: `hostname -I` (first address is usually correct) or `ip addr show`
+
+Ensure your backend is listening on `0.0.0.0` (the Flask app does by default) and your firewall allows inbound connections on the selected port (default 5050).
 
 ## Troubleshooting
 

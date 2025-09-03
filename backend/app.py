@@ -19,6 +19,10 @@ from model import (
     new_prediction_id,
     class_names,
     MODEL_NAME,
+    get_stack,
+    predict_topk_stack,
+    compute_heatmap_overlay_stack,
+    get_embedding_stack,
 )
 
 
@@ -215,15 +219,24 @@ def analyze():
     file = request.files['image']
     pil = Image.open(file.stream).convert('RGB')
 
+    # Optional per-request model selection
+    req_model = (request.form.get('model') or request.headers.get('X-Model') or MODEL_NAME).lower()
+    try:
+        stack = get_stack(req_model)
+        model_name = req_model
+    except Exception:
+        stack = get_stack(MODEL_NAME)
+        model_name = MODEL_NAME
+
     # Top-k
-    topk = predict_topk(pil, k=5)
+    topk = predict_topk_stack(stack, pil, k=5)
 
     # Heatmap (transparent overlay)
-    heat = compute_heatmap_overlay(pil, overlay_alpha=0.9)
+    heat = compute_heatmap_overlay_stack(stack, pil, overlay_alpha=0.9)
     heat_b64 = pil_to_base64_datauri(heat, fmt='PNG')
 
     # Embedding
-    emb = get_embedding(pil)
+    emb = get_embedding_stack(stack, pil)
 
     # Update PCA on window
     pid = new_prediction_id()
@@ -261,7 +274,7 @@ def analyze():
         'embedding': {'x': float(me['emb2d_x']), 'y': float(me['emb2d_y'])},
         'neighbors': neighbors,
         'id': pid,
-        'model': f'{MODEL_NAME}@torchvision',
+        'model': f'{model_name}@torchvision',
     }
     return jsonify(resp)
 

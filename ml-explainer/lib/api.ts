@@ -18,10 +18,21 @@ export type AnalysisResponse = {
   model: string;
 };
 
-export async function analyzeImageAsync(uri: string, user?: string): Promise<AnalysisResponse> {
+export async function analyzeImageAsync(
+  uri: string,
+  opts?: string | { user?: string; model?: string }
+): Promise<AnalysisResponse> {
   const filename = uri.split('/').pop() || 'image.jpg';
   const fallbackType = filename.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
   const form = new FormData();
+  let user: string | undefined;
+  let model: string | undefined;
+  if (typeof opts === 'string') {
+    user = opts;
+  } else if (opts) {
+    user = opts.user;
+    model = opts.model;
+  }
 
   if (Platform.OS === 'web') {
     // On web, convert the URI (blob/data/file) to a Blob and append a File
@@ -38,11 +49,14 @@ export async function analyzeImageAsync(uri: string, user?: string): Promise<Ana
     });
   }
 
+  if (model) form.append('model', model);
+
   const res = await fetch(`${API_URL}/analyze`, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
       ...(user ? { 'X-User': user } : {}),
+      ...(model && Platform.OS === 'web' ? { 'X-Model': model } : {}),
     },
     body: form,
   });
