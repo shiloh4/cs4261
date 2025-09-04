@@ -14,23 +14,22 @@
 
 ### Backend
 
-1) Python 3.10+ recommended.
-
-2) Install dependencies:
+1. Python 3.10+ recommended.
+2. Install dependencies:
 
 ```bash
 python -m venv backend/.venv
-source backend/.venv/bin/activate
+source backend/.venv/bin/activate # On Windows use `backend\.venv\Scripts\activate`
 pip install -r backend/requirements.txt
 ```
 
-3) Run the server (defaults to `PORT=5050`):
+3. Run the server (defaults to `PORT=5050`):
 
 ```bash
 python backend/app.py
 ```
 
-4) Health check:
+4. Health check:
 
 ```bash
 curl http://localhost:5050/health
@@ -39,16 +38,29 @@ curl http://localhost:5050/health
 
 ### Mobile App (Expo)
 
-1) Node 18+ and npm.
-
-2) Install dependencies:
+1. Node 18+ and npm.
+2. Install dependencies:
 
 ```bash
 cd ml-explainer
 npm install
 ```
 
-3) Point the app at your backend and start Expo:
+3. Point the app at your backend and start Expo:
+
+```markdown
+#### Setting up `.env` for API URL
+
+To configure the mobile app to connect to your backend, create a `.env` file in the `ml-explainer` folder:
+
+1. In your terminal, run:
+    ```bash
+    echo "EXPO_PUBLIC_API_URL=http://192.168.1.20:5050" > ml-explainer/.env
+    ```
+    Replace `192.168.1.20` with your computer’s LAN IP if testing on a physical device.
+
+2. Start the app as usual. Expo will automatically load this environment variable.
+```
 
 ```bash
 # Simulator or web
@@ -60,7 +72,7 @@ EXPO_PUBLIC_API_URL="http://192.168.1.20:5050" npm run start
 
 Alternatively, edit `ml-explainer/app.json` and set `expo.extra.apiUrl`.
 
-4) In the Expo UI, open in an iOS/Android simulator or Expo Go. Then pick/take a photo → Analyze → view Results.
+4. In the Expo UI, open in an iOS/Android simulator or Expo Go. Then pick/take a photo → Analyze → view Results.
 
 ## Backend Details
 
@@ -77,9 +89,9 @@ Alternatively, edit `ml-explainer/app.json` and set `expo.extra.apiUrl`.
 ### Storage
 
 - SQLite database at `backend/data.db` (configurable via `DB_PATH`). Each prediction stores:
-  - `id`, predicted `label` and `prob`, `timestamp`, optional `user`
-  - `true_label` (after feedback), raw `embedding`, 2D coords (`emb2d_x`,`emb2d_y`)
-  - tiny thumbnail `thumb_b64` (base64) for neighbor previews
+   - `id`, predicted `label` and `prob`, `timestamp`, optional `user`
+   - `true_label` (after feedback), raw `embedding`, 2D coords (`emb2d_x`,`emb2d_y`)
+   - tiny thumbnail `thumb_b64` (base64) for neighbor previews
 
 ### Environment Variables
 
@@ -98,9 +110,9 @@ MODEL_NAME=resnet50 python backend/app.py
 
 - Default: `ResNet50` (robust baseline, good accuracy)
 - Alternatives (switch via `MODEL_NAME`):
-  - `mobilenet_v3_large` / `mobilenet_v3_small` (lighter, faster)
-  - `efficientnet_b0` / `efficientnet_b3` (strong accuracy per compute)
-  - `convnext_tiny` (modern convnet, heavier)
+   - `mobilenet_v3_large` / `mobilenet_v3_small` (lighter, faster)
+   - `efficientnet_b0` / `efficientnet_b3` (strong accuracy per compute)
+   - `convnext_tiny` (modern convnet, heavier)
 
 Grad‑CAM and embeddings are wired for each of these models out of the box.
 
@@ -110,7 +122,8 @@ Grad‑CAM and embeddings are wired for each of these models out of the box.
 
 - Content-Type: `multipart/form-data`
 - Body:
-  - `image`: file (jpg/png)
+   - `image`: file (jpg/png)
+
 - Response 200:
 
 ```json
@@ -194,14 +207,14 @@ curl -F "image=@/path/to/photo.jpg" http://localhost:5050/analyze
 
 You can configure the mobile app to talk to your backend via a `.env` file (Expo loads `EXPO_PUBLIC_*` variables during bundling):
 
-1) Create `ml-explainer/.env` with:
+1. Create `ml-explainer/.env` with:
 
 ```env
 # Replace with your computer's LAN IP if testing on a device
 EXPO_PUBLIC_API_URL=http://192.168.1.20:5050
 ```
 
-2) Start the app (Expo will read the .env):
+2. Start the app (Expo will read the .env):
 
 ```bash
 cd ml-explainer
@@ -223,27 +236,34 @@ Or set it in config:
 Use this IP for `EXPO_PUBLIC_API_URL` when testing on a phone with Expo Go.
 
 - macOS
-  - System Settings → Network → Wi‑Fi → details → IP Address
-  - Or in Terminal: `ipconfig getifaddr en0` (Wi‑Fi) or `ipconfig getifaddr en1`
+   - System Settings → Network → Wi‑Fi → details → IP Address
+   - Or in Terminal: `ipconfig getifaddr en0` (Wi‑Fi) or `ipconfig getifaddr en1`
+
 - Windows
-  - PowerShell: `ipconfig` → find “IPv4 Address” under your active adapter
+   - PowerShell: `ipconfig` → find “IPv4 Address” under your active adapter
+
 - Linux
-  - Terminal: `hostname -I` (first address is usually correct) or `ip addr show`
+   - Terminal: `hostname -I` (first address is usually correct) or `ip addr show`
 
 Ensure your backend is listening on `0.0.0.0` (the Flask app does by default) and your firewall allows inbound connections on the selected port (default 5050).
 
 ## Troubleshooting
 
 - 400 from `/analyze`:
-  - Must be `multipart/form-data` with key `image`. The mobile client handles this automatically; on web the client converts the picked asset to a `File` before appending.
-  - Test with curl:
-    ```bash
-    curl -F "image=@/path/to/photo.jpg" http://<host>:5050/analyze
-    ```
+
+- Must be `multipart/form-data` with key `image`. The mobile client handles this automatically; on web the client converts the picked asset to a `File` before appending.
+
+- Test with curl:
+
+```bash
+curl -F "image=@/path/to/photo.jpg" http://<host>:5050/analyze
+```
+
 - Slow first request or blank heatmap:
-  - First request loads the model; allow a few seconds on cold start.
+   - First request loads the model; allow a few seconds on cold start.
+
 - Empty neighbors/embedding:
-  - Need at least 2+ predictions in the DB; PCA recomputes over the last `EMBED_WINDOW` rows.
+   - Need at least 2+ predictions in the DB; PCA recomputes over the last `EMBED_WINDOW` rows.
 
 ## Development Notes
 
