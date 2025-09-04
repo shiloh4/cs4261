@@ -49,7 +49,7 @@ npm install
 3. Point the app at your backend and start Expo:
 
 ```markdown
-#### Setting up `.env` for API URL
+# Setting up `.env` for API URL
 
 To configure the mobile app to connect to your backend, create a `.env` file in the `ml-explainer` folder:
 
