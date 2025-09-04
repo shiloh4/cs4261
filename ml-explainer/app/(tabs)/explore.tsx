@@ -5,9 +5,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import SwipePager from '@/components/ui/SwipePager';
 import ScreenTransition from '@/components/ui/ScreenTransition';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
 import { getMetricsSummaryAsync, MetricsSummary } from '@/lib/api';
 
 export default function MetricsScreen() {
@@ -32,47 +29,47 @@ export default function MetricsScreen() {
 
   return (
     <SwipePager onSwipeRight={() => navigation.navigate('index')}>
-    <ParallaxScrollView headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}>
       <ScreenTransition direction="left">
-        <LinearGradient colors={["#0ea5e9", "#6366f1"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.hero}>
-          <Text style={styles.heroTitle}>Metrics</Text>
-          <Text style={styles.heroSubtitle}>Recent predictions and confusion</Text>
-        </LinearGradient>
+        <ScrollView contentContainerStyle={styles.container}>
+          <LinearGradient colors={["#0ea5e9", "#6366f1"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.hero}>
+            <Text style={styles.heroTitle}>Metrics</Text>
+            <Text style={styles.heroSubtitle}>Recent predictions and confusion</Text>
+          </LinearGradient>
 
-        {loading && <ActivityIndicator />}
-        {error && <Text style={{ color: 'red' }}>{error}</Text>}
-        {data && (
-          <View style={{ gap: 16 }}>
-            <View>
-              <Text style={styles.sectionTitle}>Prediction counts</Text>
-              {Object.entries(data.counts).map(([label, n]) => (
+          {loading && <ActivityIndicator />}
+          {error && <Text style={{ color: 'red' }}>{error}</Text>}
+          {data && (
+            <View style={{ gap: 16 }}>
+              <View>
+                <Text style={styles.sectionTitle}>Prediction counts</Text>
+                {Object.entries(data.counts).map(([label, n]) => (
                   <View key={label} style={styles.countRow}>
-                  <Text style={{ flex: 1, color: '#fff' }}>{label}</Text>
-                  <Text style={{ width: 40, textAlign: 'right', color: '#fff' }}>{n}</Text>
+                    <Text style={{ flex: 1, color: '#fff' }}>{label}</Text>
+                    <Text style={{ width: 40, textAlign: 'right', color: '#fff' }}>{n}</Text>
                   </View>
-              ))}
-            </View>
-            <View>
-              <View style={styles.rowBetween}>
-                <Text style={styles.sectionTitle}>Confusion (last N)</Text>
-                <Pressable onPress={() => setShowInfo((s) => !s)} accessibilityLabel="About confusion matrix" hitSlop={8}>
-                  <Ionicons name="information-circle-outline" size={20} color="#e2e8f0" />
-                </Pressable>
+                ))}
               </View>
-              {showInfo && (
-                <View style={styles.infoBox}>
-                  <Text style={styles.infoTitle}>What is this?</Text>
-                  <Text style={styles.infoText}>• Rows are true labels (from your feedback). Columns are predicted labels.</Text>
-                  <Text style={styles.infoText}>• Each cell counts how often a row label was predicted as the column label.</Text>
-                  <Text style={styles.infoText}>• Computed over your recent predictions; darker cells = more examples.</Text>
+              <View>
+                <View style={styles.rowBetween}>
+                  <Text style={styles.sectionTitle}>Confusion (last N)</Text>
+                  <Pressable onPress={() => setShowInfo((s) => !s)} accessibilityLabel="About confusion matrix" hitSlop={8}>
+                    <Ionicons name="information-circle-outline" size={20} color="#e2e8f0" />
+                  </Pressable>
                 </View>
-              )}
-              <ConfusionMatrix classes={data.classes} matrix={data.confusion} />
+                {showInfo && (
+                  <View style={styles.infoBox}>
+                    <Text style={styles.infoTitle}>What is this?</Text>
+                    <Text style={styles.infoText}>• Rows are true labels (from your feedback). Columns are predicted labels.</Text>
+                    <Text style={styles.infoText}>• Each cell counts how often a row label was predicted as the column label.</Text>
+                    <Text style={styles.infoText}>• Computed over your recent predictions; darker cells = more examples.</Text>
+                  </View>
+                )}
+                <ConfusionMatrix classes={data.classes} matrix={data.confusion} />
+              </View>
             </View>
-          </View>
-        )}
+          )}
+        </ScrollView>
       </ScreenTransition>
-    </ParallaxScrollView>
     </SwipePager>
   );
 }
@@ -176,6 +173,7 @@ function ConfusionMatrix({ classes, matrix }: { classes: string[]; matrix: numbe
 }
 
 const styles = StyleSheet.create({
+  container: { padding: 16, gap: 16, marginTop: 50 },
   hero: { paddingTop: 36, paddingBottom: 16, paddingHorizontal: 16, borderRadius: 12 },
   heroTitle: { color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: 0.5 },
   heroSubtitle: { color: 'rgba(255,255,255,0.9)', marginTop: 4 },
