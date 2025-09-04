@@ -57,7 +57,7 @@ To configure the mobile app to connect to your backend, create a `.env` file in 
     ```bash
     echo "EXPO_PUBLIC_API_URL=http://192.168.1.20:5050" > ml-explainer/.env
     ```
-    Replace `192.168.1.20` with your computer’s LAN IP if testing on a physical device.
+    Replace `192.168.1.20` with your computer’s LAN IP if testing on a physical device. Find instructions on finding your LAN IP below.
 
 2. Start the app as usual. Expo will automatically load this environment variable.
 ```
