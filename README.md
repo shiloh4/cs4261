@@ -18,15 +18,18 @@
 2. Install dependencies:
 
 ```bash
-python -m venv backend/.venv
-source backend/.venv/bin/activate # On Windows use `backend\.venv\Scripts\activate`
-pip install -r backend/requirements.txt
+cd backend
+python -m venv .venv
+source .venv/bin/activate # On Windows use `.venv\Scripts\activate`
+pip install -r requirements.txt
+
 ```
 
 3. Run the server (defaults to `PORT=5050`):
 
 ```bash
-python backend/app.py
+python app.py
+
 ```
 
 4. Health check:
@@ -34,6 +37,7 @@ python backend/app.py
 ```bash
 curl http://localhost:5050/health
 # → { "ok": true }
+
 ```
 
 ### Mobile App (Expo)
@@ -44,6 +48,7 @@ curl http://localhost:5050/health
 ```bash
 cd ml-explainer
 npm install
+
 ```
 
 3. Point the app at your backend and start Expo:
@@ -61,6 +66,7 @@ To configure the mobile app to connect to your backend, create a `.env` file in 
     Find instructions on finding your LAN IP below.
 
 2. Start the app as usual. Expo will automatically load this environment variable.
+
 ```
 
 ```bash
@@ -69,6 +75,7 @@ EXPO_PUBLIC_API_URL="http://localhost:5050" npm run start
 
 # Physical device (use your computer's LAN IP)
 EXPO_PUBLIC_API_URL="http://192.168.1.20:5050" npm run start
+
 ```
 
 Alternatively, edit `ml-explainer/app.json` and set `expo.extra.apiUrl`.
@@ -105,6 +112,7 @@ Example:
 
 ```bash
 MODEL_NAME=resnet50 python backend/app.py
+
 ```
 
 ### Models Used
@@ -123,6 +131,7 @@ Grad‑CAM and embeddings are wired for each of these models out of the box.
 
 - Content-Type: `multipart/form-data`
 - Body:
+
    - `image`: file (jpg/png)
 
 - Response 200:
@@ -138,12 +147,14 @@ Grad‑CAM and embeddings are wired for each of these models out of the box.
   "id": "pred_abc123",
   "model": "mobilenet_v3_small@torchvision"
 }
+
 ```
 
 - Example:
 
 ```bash
 curl -F "image=@/path/to/photo.jpg" http://localhost:5050/analyze
+
 ```
 
 ### POST /feedback
@@ -153,12 +164,14 @@ curl -F "image=@/path/to/photo.jpg" http://localhost:5050/analyze
 
 ```json
 { "predictionId": "pred_abc123", "trueLabel": "golden retriever" }
+
 ```
 
 - Response 200:
 
 ```json
 { "ok": true }
+
 ```
 
 ### GET /metrics/summary
@@ -171,6 +184,7 @@ curl -F "image=@/path/to/photo.jpg" http://localhost:5050/analyze
   "confusion": [[0, 2], [1, 4]],
   "classes": ["cat", "dog"]
 }
+
 ```
 
 ### GET /health
@@ -179,6 +193,7 @@ curl -F "image=@/path/to/photo.jpg" http://localhost:5050/analyze
 
 ```json
 { "ok": true }
+
 ```
 
 ## Mobile App Features
@@ -213,6 +228,7 @@ You can configure the mobile app to talk to your backend via a `.env` file (Expo
 ```env
 # Replace with your computer's LAN IP if testing on a device
 EXPO_PUBLIC_API_URL=http://192.168.1.20:5050
+
 ```
 
 2. Start the app (Expo will read the .env):
@@ -220,12 +236,14 @@ EXPO_PUBLIC_API_URL=http://192.168.1.20:5050
 ```bash
 cd ml-explainer
 npm run start
+
 ```
 
 Alternatively, set it inline without a file:
 
 ```bash
 EXPO_PUBLIC_API_URL=http://192.168.1.20:5050 npm run start
+
 ```
 
 Or set it in config:
@@ -237,13 +255,16 @@ Or set it in config:
 Use this IP for `EXPO_PUBLIC_API_URL` when testing on a phone with Expo Go.
 
 - macOS
+
    - System Settings → Network → Wi‑Fi → details → IP Address
    - Or in Terminal: `ipconfig getifaddr en0` (Wi‑Fi) or `ipconfig getifaddr en1`
 
 - Windows
+
    - PowerShell: `ipconfig` → find “IPv4 Address” under your active adapter
 
 - Linux
+
    - Terminal: `hostname -I` (first address is usually correct) or `ip addr show`
 
 Ensure your backend is listening on `0.0.0.0` (the Flask app does by default) and your firewall allows inbound connections on the selected port (default 5050).
@@ -251,19 +272,20 @@ Ensure your backend is listening on `0.0.0.0` (the Flask app does by default) an
 ## Troubleshooting
 
 - 400 from `/analyze`:
-
 - Must be `multipart/form-data` with key `image`. The mobile client handles this automatically; on web the client converts the picked asset to a `File` before appending.
-
 - Test with curl:
 
 ```bash
 curl -F "image=@/path/to/photo.jpg" http://<host>:5050/analyze
+
 ```
 
 - Slow first request or blank heatmap:
+
    - First request loads the model; allow a few seconds on cold start.
 
 - Empty neighbors/embedding:
+
    - Need at least 2+ predictions in the DB; PCA recomputes over the last `EMBED_WINDOW` rows.
 
 ## Development Notes
