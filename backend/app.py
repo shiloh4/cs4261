@@ -300,5 +300,51 @@ def metrics_summary():
     })
 
 
+@app.get('/embeddings/points')
+def embeddings_points():
+    try:
+        limit = int(request.args.get('limit', str(EMBED_WINDOW)))
+    except Exception:
+        limit = EMBED_WINDOW
+    rows = last_n_predictions(limit)
+
+    # Determine most common embedding dimensionality among recent rows
+    def emb_len_safe(r):
+        try:
+            return len((r['embedding'] or '').split(','))
+        except Exception:
+            return 0
+
+    from collections import Counter
+    dims = [emb_len_safe(r) for r in rows]
+    if not dims:
+        return jsonify({'points': []})
+    dim_counts = Counter(dims)
+    target_dim, _ = max(dim_counts.items(), key=lambda x: x[1])
+    rows_dim = [r for r in rows if emb_len_safe(r) == target_dim]
+
+    # If any missing coords in this subset, recompute PCA for them
+    if any(r['emb2d_x'] is None or r['emb2d_y'] is None for r in rows_dim):
+        import numpy as np
+        vecs = [np.array(list(map(float, r['embedding'].split(',')))) for r in rows_dim]
+        Z = pca2d(vecs)
+        update_emb2d([r['id'] for r in rows_dim], Z)
+        rows = last_n_predictions(limit)
+        rows_dim = [r for r in rows if emb_len_safe(r) == target_dim]
+
+    pts = []
+    for r in rows_dim:
+        if r['emb2d_x'] is None or r['emb2d_y'] is None:
+            continue
+        pts.append({
+            'id': r['id'],
+            'x': float(r['emb2d_x']),
+            'y': float(r['emb2d_y']),
+            'label': r['predicted_label'],
+            'thumb': r['thumb_b64'],
+        })
+    return jsonify({'points': pts})
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', '5050')))

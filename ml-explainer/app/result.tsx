@@ -9,7 +9,9 @@ import { ThemedView } from '@/components/ThemedView';
 import { useAnalysis } from '@/context/AnalysisContext';
 import TopKBars from '@/components/explain/TopKBars';
 import HeatmapOverlay from '@/components/explain/HeatmapOverlay';
-import EmbeddingScatter from '@/components/explain/EmbeddingScatter';
+import ZoomableEmbeddingScatter from '@/components/explain/ZoomableEmbeddingScatter';
+import type { EmbeddingPoint } from '@/lib/api';
+import { Pressable } from 'react-native';
 import FeedbackPrompt from '@/components/explain/FeedbackPrompt';
 
 export default function ResultScreen() {
@@ -25,6 +27,20 @@ export default function ResultScreen() {
     router.replace('/');
     return null;
   }
+
+  const neighborPoints: EmbeddingPoint[] = useMemo(() => {
+    const pts: EmbeddingPoint[] = [];
+    if (result?.embedding && result?.id) {
+      pts.push({ id: result.id, x: result.embedding.x, y: result.embedding.y, label: result.topk?.[0]?.label || 'current' });
+    }
+    for (let i = 0; i < (result?.neighbors?.length || 0); i++) {
+      const n = result.neighbors[i];
+      pts.push({ id: `nb_${i}`, x: n.x, y: n.y, label: n.label, thumb: n.thumb });
+    }
+    return pts;
+  }, [result]);
+
+  const [viewMode, setViewMode] = useState<'all' | 'neighbors'>('all');
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
@@ -61,7 +77,22 @@ export default function ResultScreen() {
       </View>
 
       <View style={styles.card}>
-        <EmbeddingScatter me={result.embedding} neighbors={result.neighbors} />
+        <View style={styles.rowBetween}>
+          <Text style={styles.sectionTitle}>Embeddings</Text>
+          <View style={styles.togglePills}>
+            <Pressable onPress={() => setViewMode('all')} style={[styles.pill, viewMode === 'all' && styles.pillActive]}>
+              <Text style={[styles.pillText, viewMode === 'all' && styles.pillTextActive]}>All</Text>
+            </Pressable>
+            <Pressable onPress={() => setViewMode('neighbors')} style={[styles.pill, viewMode === 'neighbors' && styles.pillActive]}>
+              <Text style={[styles.pillText, viewMode === 'neighbors' && styles.pillTextActive]}>Neighbors</Text>
+            </Pressable>
+          </View>
+        </View>
+        {viewMode === 'all' ? (
+          <ZoomableEmbeddingScatter highlightId={result.id} title="Embeddings (all recent)" />
+        ) : (
+          <ZoomableEmbeddingScatter highlightId={result.id} title="Embeddings (neighbors)" points={neighborPoints} />
+        )}
       </View>
 
       <View style={[styles.card, styles.frontCard]}>
@@ -83,4 +114,9 @@ const styles = StyleSheet.create({
   card: { padding: 12, backgroundColor: '#fff', borderRadius: 12, gap: 12, borderColor: '#e5e7eb', borderWidth: 1 },
   sectionTitle: { fontSize: 16, fontWeight: '700' },
   frontCard: { zIndex: 10, elevation: 4 },
+  togglePills: { flexDirection: 'row', backgroundColor: '#f1f5f9', borderRadius: 999, padding: 4, gap: 4 },
+  pill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
+  pillActive: { backgroundColor: '#e0e7ff' },
+  pillText: { color: '#334155', fontWeight: '600' },
+  pillTextActive: { color: '#0f172a' },
 });

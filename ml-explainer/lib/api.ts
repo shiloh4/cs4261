@@ -113,3 +113,16 @@ export async function getMetricsSummaryAsync(): Promise<MetricsSummary> {
 export function getApiUrl() {
   return API_URL;
 }
+
+export type EmbeddingPoint = { id: string; x: number; y: number; label: string; thumb?: string };
+
+export async function getEmbeddingPointsAsync(limit?: number): Promise<EmbeddingPoint[]> {
+  const url = limit ? `${API_URL}/embeddings/points?limit=${encodeURIComponent(String(limit))}` : `${API_URL}/embeddings/points`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Embeddings failed: ${res.status} ${txt}`);
+  }
+  const data = (await res.json()) as { points: EmbeddingPoint[] };
+  return data.points ?? [];
+}
