@@ -13,7 +13,6 @@ import GradientButton from '@/components/ui/GradientButton';
 import { Image as ExpoImage } from 'expo-image';
 import ScreenTransition from '@/components/ui/ScreenTransition';
 import SwipePager from '@/components/ui/SwipePager';
-import * as Haptics from 'expo-haptics';
 
 export default function HomeScreen() {
   const [imageUri, setImageUri] = useState<string | undefined>();
@@ -49,21 +48,9 @@ export default function HomeScreen() {
 
   async function analyze() {
     if (!imageUri) return;
-    try {
-      setLoading(true);
-      const result = await analyzeImageAsync(imageUri, { model });
-      // Haptic success when analysis completes
-      try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
-      // Local push notification
-      const { notifyAnalysisDone } = await import('@/lib/notifications');
-      notifyAnalysisDone(result.model);
-      setAnalysis(imageUri, result);
-      router.push('/result');
-    } catch (e: any) {
-      Alert.alert('Analyze failed', e?.message || String(e));
-    } finally {
-      setLoading(false);
-    }
+    // Set image into context and navigate to analyzing screen which runs the request
+    setAnalysis(imageUri, undefined);
+    router.push({ pathname: '/analyzing', params: { model } });
   }
 
   const availableModels: { key: string; label: string }[] = [

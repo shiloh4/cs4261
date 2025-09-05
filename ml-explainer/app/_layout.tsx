@@ -37,6 +37,14 @@ export default function RootLayout() {
               }}
             />
             <Stack.Screen
+              name="analyzing"
+              options={{
+                title: 'Analyzing',
+                headerShown: false,
+                presentation: 'card',
+              }}
+            />
+            <Stack.Screen
               name="result"
               options={{
                 title: 'Results',

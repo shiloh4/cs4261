@@ -20,18 +20,22 @@ export type AnalysisResponse = {
 
 export async function analyzeImageAsync(
   uri: string,
-  opts?: string | { user?: string; model?: string }
+  opts?: string | { user?: string; model?: string; signal?: AbortSignal; timeoutMs?: number }
 ): Promise<AnalysisResponse> {
   const filename = uri.split('/').pop() || 'image.jpg';
   const fallbackType = filename.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
   const form = new FormData();
   let user: string | undefined;
   let model: string | undefined;
+  let signal: AbortSignal | undefined;
+  let timeoutMs: number | undefined;
   if (typeof opts === 'string') {
     user = opts;
   } else if (opts) {
     user = opts.user;
     model = opts.model;
+    signal = opts.signal;
+    timeoutMs = opts.timeoutMs;
   }
 
   if (Platform.OS === 'web') {
@@ -51,20 +55,36 @@ export async function analyzeImageAsync(
 
   if (model) form.append('model', model);
 
-  const res = await fetch(`${API_URL}/analyze`, {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      ...(user ? { 'X-User': user } : {}),
-      ...(model && Platform.OS === 'web' ? { 'X-Model': model } : {}),
-    },
-    body: form,
-  });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Analyze failed: ${res.status} ${txt}`);
+  const ctrl = new AbortController();
+  const compositeSignal = mergeSignals(signal, ctrl.signal);
+  let t: any;
+  try {
+    if (timeoutMs && timeoutMs > 0) {
+      t = setTimeout(() => ctrl.abort(), timeoutMs);
+    }
+    const res = await fetch(`${API_URL}/analyze`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        ...(user ? { 'X-User': user } : {}),
+        ...(model && Platform.OS === 'web' ? { 'X-Model': model } : {}),
+      },
+      body: form,
+      signal: compositeSignal,
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`Analyze failed: ${res.status} ${txt}`);
+    }
+    return (await res.json()) as AnalysisResponse;
+  } catch (e: any) {
+    if (e?.name === 'AbortError') {
+      throw new Error('Analyze request was canceled');
+    }
+    throw e;
+  } finally {
+    if (t) clearTimeout(t);
   }
-  return (await res.json()) as AnalysisResponse;
 }
 
 export async function sendFeedbackAsync(predictionId: string, trueLabel: string, timeoutMs = 10000) {
@@ -112,6 +132,21 @@ export async function getMetricsSummaryAsync(): Promise<MetricsSummary> {
 
 export function getApiUrl() {
   return API_URL;
+}
+
+// Merge an external AbortSignal with our internal controller signal.
+function mergeSignals(a?: AbortSignal, b?: AbortSignal): AbortSignal | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  const ctrl = new AbortController();
+  function onAbort() {
+    try {
+      ctrl.abort();
+    } catch {}
+  }
+  a.addEventListener('abort', onAbort);
+  b.addEventListener('abort', onAbort);
+  return ctrl.signal;
 }
 
 export type EmbeddingPoint = { id: string; x: number; y: number; label: string; thumb?: string };

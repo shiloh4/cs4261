@@ -14,7 +14,7 @@ import torchvision as tv
 # Model loader (env-configurable)
 # -----------------------------------------------------------------------------
 
-MODEL_NAME = os.environ.get("MODEL_NAME", "resnet50").lower()
+MODEL_NAME = os.environ.get("MODEL_NAME", "mobilenet_v3_large").lower()
 
 
 def _build_model(name: str):
