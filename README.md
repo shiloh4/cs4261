@@ -23,12 +23,14 @@ python -m venv .venv
 source .venv/bin/activate # On Windows use `.venv\Scripts\activate`
 pip install -r requirements.txt
 
+
 ```
 
 3. Run the server (defaults to `PORT=5050`):
 
 ```bash
 python app.py
+
 
 ```
 
@@ -38,49 +40,74 @@ python app.py
 curl http://localhost:5050/health
 # → { "ok": true }
 
+
 ```
 
-### Mobile App (Expo)
+### Frontend .env setup
 
-1. Node 18+ and npm.
+You can configure the mobile app to talk to your backend via a `.env` file (Expo loads `EXPO_PUBLIC_*` variables during bundling):
+
+1. Create `ml-explainer/.env` with:
+
+    To configure the mobile app to connect to your backend, create `ml-explainer/.env`.
+    Copy & paste:
+
+```bash
+EXPO_PUBLIC_API_URL=http://192.168.1.20:5050
+
+```
+
+Replace `192.168.1.20` with your computer's LAN IP if testing on a physical device. 
+Find instructions on finding your LAN IP below.
+
 2. Install dependencies:
 
 ```bash
 cd ml-explainer
 npm install
 
-```
-
-3. Point the app at your backend and start Expo:
-
-```markdown
-# Setting up `.env` for API URL
-
-To configure the mobile app to connect to your backend, create a `.env` file in the `ml-explainer` folder:
-
-1. In your terminal, run:
-    ```bash
-    echo "EXPO_PUBLIC_API_URL=http://192.168.1.20:5050" > ml-explainer/.env
-    ```
-    Replace `192.168.1.20` with your computer’s LAN IP if testing on a physical device. 
-    Find instructions on finding your LAN IP below.
-
-2. Start the app as usual. Expo will automatically load this environment variable.
 
 ```
+
+3. Start the app (Expo will read the .env)
 
 ```bash
-# Simulator or web
-EXPO_PUBLIC_API_URL="http://localhost:5050" npm run start
-
-# Physical device (use your computer's LAN IP)
-EXPO_PUBLIC_API_URL="http://192.168.1.20:5050" npm run start
+npm run start
 
 ```
 
-Alternatively, edit `ml-explainer/app.json` and set `expo.extra.apiUrl`.
+Alternatively, set it inline without a file:
+
+```bash
+EXPO_PUBLIC_API_URL=http://192.168.1.20:5050 npm run start
+
+
+```
+
+Or set it in config:
+
+- Edit `ml-explainer/app.json` → `expo.extra.apiUrl`.
 
 4. In the Expo UI, open in an iOS/Android simulator or Expo Go. Then pick/take a photo → Analyze → view Results.
+
+### Finding your device’s LAN IP
+
+Use this IP for `EXPO_PUBLIC_API_URL` when testing on a phone with Expo Go.
+
+- macOS
+
+   - System Settings → Network → Wi‑Fi → details → IP Address
+   - Or in Terminal: `ipconfig getifaddr en0` (Wi‑Fi) or `ipconfig getifaddr en1`
+
+- Windows
+
+   - PowerShell: `ipconfig` → find “IPv4 Address” under your wireless active LAN adapter
+
+- Linux
+
+   - Terminal: `hostname -I` (first address is usually correct) or `ip addr show`
+
+Ensure your backend is listening on `0.0.0.0` (the Flask app does by default) and your firewall allows inbound connections on the selected port (default 5050).
 
 ## Backend Details
 
@@ -112,6 +139,7 @@ Example:
 
 ```bash
 MODEL_NAME=resnet50 python backend/app.py
+
 
 ```
 
@@ -148,12 +176,14 @@ Grad‑CAM and embeddings are wired for each of these models out of the box.
   "model": "mobilenet_v3_small@torchvision"
 }
 
+
 ```
 
 - Example:
 
 ```bash
 curl -F "image=@/path/to/photo.jpg" http://localhost:5050/analyze
+
 
 ```
 
@@ -165,12 +195,14 @@ curl -F "image=@/path/to/photo.jpg" http://localhost:5050/analyze
 ```json
 { "predictionId": "pred_abc123", "trueLabel": "golden retriever" }
 
+
 ```
 
 - Response 200:
 
 ```json
 { "ok": true }
+
 
 ```
 
@@ -185,6 +217,7 @@ curl -F "image=@/path/to/photo.jpg" http://localhost:5050/analyze
   "classes": ["cat", "dog"]
 }
 
+
 ```
 
 ### GET /health
@@ -193,6 +226,7 @@ curl -F "image=@/path/to/photo.jpg" http://localhost:5050/analyze
 
 ```json
 { "ok": true }
+
 
 ```
 
@@ -219,56 +253,6 @@ curl -F "image=@/path/to/photo.jpg" http://localhost:5050/analyze
 - `ml-explainer/lib/api.ts` reads the API URL from `EXPO_PUBLIC_API_URL` or from `app.json` (`expo.extra.apiUrl`). Default is `http://localhost:5050`.
 - On a real device, ensure the backend is reachable over LAN and use the computer’s IP, not `localhost`.
 
-### Frontend .env setup
-
-You can configure the mobile app to talk to your backend via a `.env` file (Expo loads `EXPO_PUBLIC_*` variables during bundling):
-
-1. Create `ml-explainer/.env` with:
-
-```env
-# Replace with your computer's LAN IP if testing on a device
-EXPO_PUBLIC_API_URL=http://192.168.1.20:5050
-
-```
-
-2. Start the app (Expo will read the .env):
-
-```bash
-cd ml-explainer
-npm run start
-
-```
-
-Alternatively, set it inline without a file:
-
-```bash
-EXPO_PUBLIC_API_URL=http://192.168.1.20:5050 npm run start
-
-```
-
-Or set it in config:
-
-- Edit `ml-explainer/app.json` → `expo.extra.apiUrl`.
-
-### Finding your device’s LAN IP
-
-Use this IP for `EXPO_PUBLIC_API_URL` when testing on a phone with Expo Go.
-
-- macOS
-
-   - System Settings → Network → Wi‑Fi → details → IP Address
-   - Or in Terminal: `ipconfig getifaddr en0` (Wi‑Fi) or `ipconfig getifaddr en1`
-
-- Windows
-
-   - PowerShell: `ipconfig` → find “IPv4 Address” under your active adapter
-
-- Linux
-
-   - Terminal: `hostname -I` (first address is usually correct) or `ip addr show`
-
-Ensure your backend is listening on `0.0.0.0` (the Flask app does by default) and your firewall allows inbound connections on the selected port (default 5050).
-
 ## Troubleshooting
 
 - 400 from `/analyze`:
@@ -277,6 +261,7 @@ Ensure your backend is listening on `0.0.0.0` (the Flask app does by default) an
 
 ```bash
 curl -F "image=@/path/to/photo.jpg" http://<host>:5050/analyze
+
 
 ```
 
