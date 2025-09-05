@@ -37,7 +37,7 @@
       ]
     ],
     "extra": {
-      "apiUrl": "http://localhost:5050"
+      "apiUrl": "https://cs4261.onrender.com"
     },
     "experiments": {
       "typedRoutes": true

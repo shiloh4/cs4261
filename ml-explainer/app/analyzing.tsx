@@ -6,7 +6,7 @@ import * as Haptics from 'expo-haptics';
 
 import { ThemedView } from '@/components/ThemedView';
 import { useAnalysis } from '@/context/AnalysisContext';
-import { analyzeImageAsync } from '@/lib/api';
+import { analyzeImageAsync, pingHealthAsync, resolveApiBase } from '@/lib/api';
 import { notifyAnalysisDone } from '@/lib/notifications';
 
 export default function AnalyzingScreen() {
@@ -29,7 +29,17 @@ export default function AnalyzingScreen() {
     externalAbort.current = controller;
     (async () => {
       try {
-        const res = await analyzeImageAsync(imageUri!, { model: typeof model === 'string' ? model : undefined, signal: controller.signal });
+        // Pick a reachable base (tries extra.apiUrl, fallbacks, localhost)
+        try {
+          await resolveApiBase({ signal: controller.signal, timeoutMs: 7000 });
+        } catch {}
+        // Wake the backend (cold start) before heavy request
+        try {
+          await pingHealthAsync({ signal: controller.signal, timeoutMs: 15000 });
+        } catch {
+          // Ignore and proceed — the analyze call might still work
+        }
+        const res = await analyzeImageAsync(imageUri!, { model: typeof model === 'string' ? model : undefined, signal: controller.signal, timeoutMs: 180000 });
         if (!alive) return;
         try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
         try { await notifyAnalysisDone(res.model); } catch {}

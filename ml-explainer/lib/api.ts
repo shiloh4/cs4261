@@ -1,11 +1,39 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-const API_URL =
-  process.env.EXPO_PUBLIC_API_URL ||
-  // @ts-ignore expoConfig exists at runtime in Expo
-  (Constants.expoConfig?.extra?.apiUrl as string) ||
-  'http://localhost:5050';
+// Build a prioritized candidate list for the API base URL and support runtime fallback.
+// Order: app.json extra.apiUrl → app.json extra.apiUrls[] → EXPO_PUBLIC_API_URL → EXPO_PUBLIC_API_URLS (comma list) → localhost
+// @ts-ignore expoConfig exists at runtime in Expo
+const extra: any = Constants.expoConfig?.extra || {};
+const primaryFromExtra = (extra?.apiUrl as string | undefined)?.trim();
+const listFromExtra = Array.isArray(extra?.apiUrls) ? (extra.apiUrls as string[]).map((s) => s.trim()) : [];
+const singleFromEnv = (process.env.EXPO_PUBLIC_API_URL as string | undefined)?.trim();
+const listFromEnv = (process.env.EXPO_PUBLIC_API_URLS as string | undefined)
+  ?.split(',')
+  .map((s) => s.trim())
+  .filter(Boolean) || [];
+
+const DEFAULT_CANDIDATES = [
+  primaryFromExtra,
+  ...listFromExtra,
+  singleFromEnv,
+  ...listFromEnv,
+  'http://localhost:5050',
+].filter(Boolean) as string[];
+
+let SELECTED_API_URL: string | null = null;
+
+export function getApiCandidates(): string[] {
+  return SELECTED_API_URL ? [SELECTED_API_URL] : DEFAULT_CANDIDATES;
+}
+
+export function setApiUrl(url: string) {
+  SELECTED_API_URL = url;
+}
+
+function currentBase(): string {
+  return SELECTED_API_URL || DEFAULT_CANDIDATES[0] || 'http://localhost:5050';
+}
 
 export type TopKItem = { label: string; p: number };
 export type Neighbor = { x: number; y: number; thumb: string; label: string };
@@ -62,7 +90,7 @@ export async function analyzeImageAsync(
     if (timeoutMs && timeoutMs > 0) {
       t = setTimeout(() => ctrl.abort(), timeoutMs);
     }
-    const res = await fetch(`${API_URL}/analyze`, {
+    const res = await fetch(`${currentBase()}/analyze`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
@@ -91,7 +119,7 @@ export async function sendFeedbackAsync(predictionId: string, trueLabel: string,
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(`${API_URL}/feedback`, {
+    const res = await fetch(`${currentBase()}/feedback`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -122,7 +150,7 @@ export type MetricsSummary = {
 };
 
 export async function getMetricsSummaryAsync(): Promise<MetricsSummary> {
-  const res = await fetch(`${API_URL}/metrics/summary`);
+  const res = await fetch(`${currentBase()}/metrics/summary`);
   if (!res.ok) {
     const txt = await res.text();
     throw new Error(`Metrics failed: ${res.status} ${txt}`);
@@ -131,7 +159,7 @@ export async function getMetricsSummaryAsync(): Promise<MetricsSummary> {
 }
 
 export function getApiUrl() {
-  return API_URL;
+  return currentBase();
 }
 
 // Merge an external AbortSignal with our internal controller signal.
@@ -149,10 +177,49 @@ function mergeSignals(a?: AbortSignal, b?: AbortSignal): AbortSignal | undefined
   return ctrl.signal;
 }
 
+export async function pingHealthAsync(opts?: { signal?: AbortSignal; timeoutMs?: number; base?: string }) {
+  const ctrl = new AbortController();
+  const signal = mergeSignals(opts?.signal, ctrl.signal);
+  let t: any;
+  try {
+    if (opts?.timeoutMs && opts.timeoutMs > 0) {
+      t = setTimeout(() => ctrl.abort(), opts.timeoutMs);
+    }
+    const res = await fetch(`${opts?.base || currentBase()}/health`, { signal });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`Health failed: ${res.status} ${txt}`);
+    }
+    return;
+  } catch (e) {
+    throw e;
+  } finally {
+    if (t) clearTimeout(t);
+  }
+}
+
+export async function resolveApiBase(opts?: { candidates?: string[]; signal?: AbortSignal; timeoutMs?: number }): Promise<string> {
+  if (SELECTED_API_URL) return SELECTED_API_URL;
+  const cand = (opts?.candidates && opts.candidates.length ? opts.candidates : DEFAULT_CANDIDATES).filter(Boolean);
+  for (const base of cand) {
+    try {
+      await pingHealthAsync({ base, signal: opts?.signal, timeoutMs: opts?.timeoutMs ?? 5000 });
+      setApiUrl(base);
+      return base;
+    } catch {
+      // try next
+    }
+  }
+  // As a last resort, set the first candidate even if it failed (so error messages include it)
+  setApiUrl(cand[0] || 'http://localhost:5050');
+  throw new Error('No API base reachable');
+}
+
 export type EmbeddingPoint = { id: string; x: number; y: number; label: string; thumb?: string };
 
 export async function getEmbeddingPointsAsync(limit?: number): Promise<EmbeddingPoint[]> {
-  const url = limit ? `${API_URL}/embeddings/points?limit=${encodeURIComponent(String(limit))}` : `${API_URL}/embeddings/points`;
+  const base = currentBase();
+  const url = limit ? `${base}/embeddings/points?limit=${encodeURIComponent(String(limit))}` : `${base}/embeddings/points`;
   const res = await fetch(url);
   if (!res.ok) {
     const txt = await res.text();

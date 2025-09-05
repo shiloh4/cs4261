@@ -12,7 +12,9 @@
 
 ## Quick Start
 
-### Backend
+### Backend setup
+
+The backend is deployed to Render and you should only need to start the frontend locally. Because the backend is hosted on the free tier of Render and that the CV models are huge, cold-calls might result in OOM errors or timeouts. For a more robust experience, it is recommended to run the backend locally. In `api.ts`, there is a graceful fallback system that prefers the Render URL but falls back to the local dev server if it fails.
 
 1. Python 3.10+ recommended.
 2. Install dependencies:
@@ -49,15 +51,15 @@ You can configure the mobile app to talk to your backend via a `.env` file (Expo
 
 1. Create `ml-explainer/.env` with:
 
-    To configure the mobile app to connect to your backend, create `ml-explainer/.env`.
-    Copy & paste:
+   To configure the mobile app to connect to your backend, create `ml-explainer/.env`.
+   Copy & paste:
 
 ```bash
 EXPO_PUBLIC_API_URL=http://192.168.1.20:5050
 
 ```
 
-Replace `192.168.1.20` with your computer's LAN IP if testing on a physical device. 
+Replace `192.168.1.20` with your computer's LAN IP if testing on a physical device.
 Find instructions on finding your LAN IP below.
 
 2. Install dependencies:
@@ -133,20 +135,21 @@ Ensure your backend is listening on `0.0.0.0` (the Flask app does by default) an
 - `PORT` (default `5050`): Flask server port
 - `DB_PATH` (default `data.db`): SQLite file path
 - `EMBED_WINDOW` (default `200`): size of the recent window used for PCA
-- `MODEL_NAME` (default `resnet50`): backbone to use. Supported: `resnet50`, `mobilenet_v3_large`, `mobilenet_v3_small`, `efficientnet_b0`, `efficientnet_b3`, `convnext_tiny`.
+- `MODEL_NAME` (default `mobilenet_v3_large`): backbone to use. Supported: `resnet50`, `mobilenet_v3_large`, `mobilenet_v3_small`, `efficientnet_b0`, `efficientnet_b3`, `convnext_tiny`.
 
 Example:
 
 ```bash
-MODEL_NAME=resnet50 python backend/app.py
+MODEL_NAME=mobilenet_v3_large python backend/app.py
 
 
 ```
 
 ### Models Used
 
-- Default: `ResNet50` (robust baseline, good accuracy)
+- Default: `mobilenet_v3_large`
 - Alternatives (switch via `MODEL_NAME`):
+   - `resnet50` (robust baseline, good accuracy)
    - `mobilenet_v3_large` / `mobilenet_v3_small` (lighter, faster)
    - `efficientnet_b0` / `efficientnet_b3` (strong accuracy per compute)
    - `convnext_tiny` (modern convnet, heavier)
