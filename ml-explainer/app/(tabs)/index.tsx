@@ -18,7 +18,7 @@ export default function HomeScreen() {
   const [imageUri, setImageUri] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const [modelPickerVisible, setModelPickerVisible] = useState(false);
-  const [model, setModel] = useState<string>('resnet50');
+  const [model, setModel] = useState<string>('mobilenet_v3_large');
   const router = useRouter();
   const { setAnalysis } = useAnalysis();
 
@@ -54,8 +54,8 @@ export default function HomeScreen() {
   }
 
   const availableModels: { key: string; label: string }[] = [
-    { key: 'resnet50', label: 'ResNet50 (default)' },
-    { key: 'mobilenet_v3_large', label: 'MobileNetV3 Large' },
+    { key: 'mobilenet_v3_large', label: 'MobileNetV3 Large (default)' },
+    { key: 'resnet50', label: 'ResNet50' },
     { key: 'mobilenet_v3_small', label: 'MobileNetV3 Small' },
     { key: 'efficientnet_b0', label: 'EfficientNet-B0' },
     { key: 'efficientnet_b3', label: 'EfficientNet-B3' },
