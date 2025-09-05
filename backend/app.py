@@ -204,7 +204,7 @@ init_db()
 
 @app.route("/")
 def index():
-    return "VisionTags EDU backend is running."
+    return "ml-explainer backend is running."
 
 
 @app.get('/health')

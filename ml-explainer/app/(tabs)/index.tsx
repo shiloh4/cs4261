@@ -68,7 +68,7 @@ export default function HomeScreen() {
     <SwipePager onSwipeLeft={() => navigation.navigate('explore')}>
       <ScreenTransition direction="right">
         <LinearGradient colors={["#0ea5e9", "#6366f1"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.hero}>
-          <Text style={styles.heroTitle}>VisionTags EDU</Text>
+          <Text style={styles.heroTitle}>ml-explainer</Text>
           <Text style={styles.heroSubtitle}>Classify a photo — and learn why</Text>
         </LinearGradient>
         <ThemedView style={styles.container}>

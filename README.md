@@ -1,4 +1,4 @@
-# VisionTags EDU — Mobile Explainable AI Demo
+# ml-explainer — Mobile Explainable AI Demo
 
 ## Overview
 
@@ -14,7 +14,9 @@
 
 ### Backend setup
 
-The backend is deployed to Render and you should only need to start the frontend locally. Because the backend is hosted on the free tier of Render and that the CV models are huge, cold-calls might result in OOM errors or timeouts. For a more robust experience, it is recommended to run the backend locally. In `api.ts`, there is a graceful fallback system that prefers the Render URL but falls back to the local dev server if it fails.
+The backend is deployed to Render and ideally, you should only need to start the frontend locally. Because the backend is hosted on the free tier of Render and that the CV model weights and wheel sizes are huge, cold-calls might result in OOM errors or timeouts. 
+
+The backend will try to minimize cold starts but larger models may still result in OOMs. For a more robust experience, it is recommended to run the backend locally. There is a graceful fallback system that prefers the Render URL but falls back to the local dev server if it fails.
 
 1. Python 3.10+ recommended.
 2. Install dependencies:
