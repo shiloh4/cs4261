@@ -4,6 +4,8 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useEffect } from 'react';
+import { initNotificationsAsync } from '@/lib/notifications';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { AnalysisProvider } from '@/context/AnalysisContext';
@@ -23,6 +25,7 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <AnalysisProvider>
+          <InitOnce />
           <Stack>
             <Stack.Screen
               name="(tabs)"
@@ -48,4 +51,11 @@ export default function RootLayout() {
       </GestureHandlerRootView>
     </ThemeProvider>
   );
+}
+
+function InitOnce() {
+  useEffect(() => {
+    initNotificationsAsync();
+  }, []);
+  return null;
 }
