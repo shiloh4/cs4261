@@ -14,9 +14,11 @@
 
 ### Backend setup
 
-The backend is deployed to Render and ideally, you should only need to start the frontend locally. Because the backend is hosted on the free tier of Render and that the CV model weights and wheel sizes are huge, cold-calls might result in OOM errors or timeouts. 
+The backend is deployed to Render and ideally, you should only need to start the frontend locally. The backend is hosted on the 2GB-tier of Render ($25/month). For the sake of the assignment, the service will be **suspended after Oct 5 2025** to prevent further costs, beyond which you will have to run the backend locally. The CV model weights and wheel sizes are huge, so cold-calls will result in OOM errors or timeouts in the free tier of Render. 
 
-The backend will try to minimize cold starts but larger models may still result in OOMs. For a more robust experience, it is recommended to run the backend locally. There is a graceful fallback system that prefers the Render URL but falls back to the local dev server if it fails.
+For a more robust experience, run the backend locally. There is a graceful fallback system that prefers the Render URL but falls back to the local dev server if it fails.
+
+**If you choose not to run a local backend server, make sure to only use MobileNetV3 Small, MobileNetV3 Large, EfficientNet-B0 models to minimize request failures.** The purpose of multiple models is for users to be able to experiment how larger/smaller models differ in their predictions and certainty.
 
 1. Python 3.10+ recommended.
 2. Install dependencies:
