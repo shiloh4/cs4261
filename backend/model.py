@@ -2,6 +2,7 @@ import io
 import os
 import uuid
 from typing import List, Tuple, Dict, Any
+from collections import OrderedDict
 
 import numpy as np
 from PIL import Image
@@ -16,6 +17,7 @@ from huggingface_hub import hf_hub_download
 # -----------------------------------------------------------------------------
 
 MODEL_NAME = os.environ.get("MODEL_NAME", "mobilenet_v3_small").lower()
+MODEL_CACHE_MAX = int(os.environ.get("MODEL_CACHE_MAX", "1"))  # limit concurrently loaded models
 
 # Limit torch intra-op threads on small instances unless overridden
 try:
@@ -179,8 +181,9 @@ class GradCAM:
             class_idx = int(out.argmax(dim=1))
         score = out[:, class_idx].sum()
         # Backward
-        self.model.zero_grad()
-        score.backward(retain_graph=True)
+        self.model.zero_grad(set_to_none=True)
+        # No need to retain the graph for a single backward pass
+        score.backward()
 
         A = self.activations  # [1, C, H, W]
         dA = self.gradients   # [1, C, H, W]
@@ -190,6 +193,9 @@ class GradCAM:
         cam = nn.functional.interpolate(cam, size=x.shape[2:], mode='bilinear', align_corners=False)
         cam = cam.squeeze().cpu().numpy()
         cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
+        # Drop references to intermediate tensors to allow GC
+        self.activations = None
+        self.gradients = None
         return cam
 
 
@@ -199,21 +205,37 @@ grad_cam = GradCAM(model, _target_layer)
 # -----------------------------------------------------------------------------
 # Multi-model cache and helpers (for per-request model selection)
 # -----------------------------------------------------------------------------
-_MODEL_CACHE: Dict[str, Dict[str, Any]] = {}
+_MODEL_CACHE: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
 
 
 def get_stack(name: str) -> Dict[str, Any]:
     key = (name or MODEL_NAME).lower()
-    if key not in _MODEL_CACHE:
-        m, pp, classes, tgt, emb = _build_model(key)
-        _MODEL_CACHE[key] = {
-            'name': key,
-            'model': m,
-            'preproc': pp,
-            'class_names': classes,
-            'grad_cam': GradCAM(m, tgt),
-            'emb_module': emb,
-        }
+    if key in _MODEL_CACHE:
+        # LRU: mark as recently used
+        _MODEL_CACHE.move_to_end(key)
+        return _MODEL_CACHE[key]
+
+    # Enforce cache size limit to avoid loading multiple heavyweight models at once
+    while len(_MODEL_CACHE) >= max(1, MODEL_CACHE_MAX):
+        try:
+            old_key, old_val = _MODEL_CACHE.popitem(last=False)
+            # Best-effort help GC
+            try:
+                del old_val
+            except Exception:
+                pass
+        except KeyError:
+            break
+
+    m, pp, classes, tgt, emb = _build_model(key)
+    _MODEL_CACHE[key] = {
+        'name': key,
+        'model': m,
+        'preproc': pp,
+        'class_names': classes,
+        'grad_cam': GradCAM(m, tgt),
+        'emb_module': emb,
+    }
     return _MODEL_CACHE[key]
 
 
