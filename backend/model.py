@@ -8,6 +8,7 @@ from PIL import Image
 import torch
 import torch.nn as nn
 import torchvision as tv
+from huggingface_hub import hf_hub_download
 
 
 # -----------------------------------------------------------------------------
@@ -16,49 +17,121 @@ import torchvision as tv
 
 MODEL_NAME = os.environ.get("MODEL_NAME", "mobilenet_v3_large").lower()
 
+# Limit torch intra-op threads on small instances unless overridden
+try:
+    torch.set_num_threads(int(os.environ.get("TORCH_THREADS", "1")))
+except Exception:
+    pass
+
+# Optional: Hugging Face repo to pull weights from
+HF_REPO_DEFAULT = os.environ.get("HUGGINGFACE_REPO_ID", "shiloh4/mlexplainer_weights").strip()
+
+DEFAULT_HF_FILENAMES: Dict[str, str] = {
+    "mobilenet_v3_small": "mobilenet_v3_small-047dcff4.pth",
+    "mobilenet_v3_large": "mobilenet_v3_large-5c1a4163.pth",
+    "resnet50": "resnet50-11ad3fa6.pth",
+    "efficientnet_b0": "efficientnet_b0_rwightman-7f5810bc.pth",
+    "efficientnet_b3": "efficientnet_b3_rwightman-b3899882.pth",
+    "convnext_tiny": "convnext_tiny-983f1562.pth",
+}
+
+
+def _load_from_hf(model_key: str) -> Dict[str, Any] | None:
+    """Attempt to download a state_dict from Hugging Face for the given model key.
+    Returns a dict (state_dict) or None if unavailable.
+    You can override repo/filename per model via env vars like:
+      HF_REPO_ID_RESNET50, HF_FILENAME_RESNET50, etc.
+    Keys: mobilenet_v3_small, mobilenet_v3_large, resnet50, efficientnet_b0, efficientnet_b3, convnext_tiny
+    """
+    repo_env_key = f"HF_REPO_ID_{model_key.upper()}"
+    file_env_key = f"HF_FILENAME_{model_key.upper()}"
+    repo_id = os.environ.get(repo_env_key, HF_REPO_DEFAULT)
+    filename = os.environ.get(file_env_key, DEFAULT_HF_FILENAMES.get(model_key, "")).strip()
+    if not repo_id or not filename:
+        return None
+    try:
+        local_path = hf_hub_download(repo_id=repo_id, filename=filename)
+        state = torch.load(local_path, map_location="cpu")
+        # Some checkpoints saved as dict with 'state_dict'
+        if isinstance(state, dict) and "state_dict" in state:
+            state = state["state_dict"]
+        return state
+    except Exception:
+        return None
+
 
 def _build_model(name: str):
     name = name.lower()
     if name in {"mobilenet_v3_small", "mnet_v3_small", "mnet_small", "mobilenet_small"}:
-        weights = tv.models.MobileNet_V3_Small_Weights.DEFAULT
-        m = tv.models.mobilenet_v3_small(weights=weights)
-        preproc = weights.transforms()
-        classes = weights.meta["categories"]
+        tvw = tv.models.MobileNet_V3_Small_Weights.DEFAULT
+        state = _load_from_hf("mobilenet_v3_small")
+        if state is not None:
+            m = tv.models.mobilenet_v3_small(weights=None)
+            m.load_state_dict(state)
+        else:
+            m = tv.models.mobilenet_v3_small(weights=tvw)
+        preproc = tvw.transforms()
+        classes = tvw.meta["categories"]
         target_layer = m.features[-1]
         emb_module = m.classifier[-1]
     elif name in {"mobilenet_v3_large", "mnet_v3_large", "mobilenet_large", "mnet_large"}:
-        weights = tv.models.MobileNet_V3_Large_Weights.DEFAULT
-        m = tv.models.mobilenet_v3_large(weights=weights)
-        preproc = weights.transforms()
-        classes = weights.meta["categories"]
+        tvw = tv.models.MobileNet_V3_Large_Weights.DEFAULT
+        state = _load_from_hf("mobilenet_v3_large")
+        if state is not None:
+            m = tv.models.mobilenet_v3_large(weights=None)
+            m.load_state_dict(state)
+        else:
+            m = tv.models.mobilenet_v3_large(weights=tvw)
+        preproc = tvw.transforms()
+        classes = tvw.meta["categories"]
         target_layer = m.features[-1]
         emb_module = m.classifier[-1]
     elif name in {"resnet50", "resnet"}:
-        weights = tv.models.ResNet50_Weights.DEFAULT
-        m = tv.models.resnet50(weights=weights)
-        preproc = weights.transforms()
-        classes = weights.meta["categories"]
+        tvw = tv.models.ResNet50_Weights.DEFAULT
+        state = _load_from_hf("resnet50")
+        if state is not None:
+            m = tv.models.resnet50(weights=None)
+            m.load_state_dict(state)
+        else:
+            m = tv.models.resnet50(weights=tvw)
+        preproc = tvw.transforms()
+        classes = tvw.meta["categories"]
         target_layer = m.layer4[-1]
         emb_module = m.fc
     elif name in {"efficientnet_b0", "effb0", "efficientnet0"}:
-        weights = tv.models.EfficientNet_B0_Weights.DEFAULT
-        m = tv.models.efficientnet_b0(weights=weights)
-        preproc = weights.transforms()
-        classes = weights.meta["categories"]
+        tvw = tv.models.EfficientNet_B0_Weights.DEFAULT
+        state = _load_from_hf("efficientnet_b0")
+        if state is not None:
+            m = tv.models.efficientnet_b0(weights=None)
+            m.load_state_dict(state)
+        else:
+            m = tv.models.efficientnet_b0(weights=tvw)
+        preproc = tvw.transforms()
+        classes = tvw.meta["categories"]
         target_layer = m.features[-1]
         emb_module = m.classifier[-1]
     elif name in {"efficientnet_b3", "effb3", "efficientnet3"}:
-        weights = tv.models.EfficientNet_B3_Weights.DEFAULT
-        m = tv.models.efficientnet_b3(weights=weights)
-        preproc = weights.transforms()
-        classes = weights.meta["categories"]
+        tvw = tv.models.EfficientNet_B3_Weights.DEFAULT
+        state = _load_from_hf("efficientnet_b3")
+        if state is not None:
+            m = tv.models.efficientnet_b3(weights=None)
+            m.load_state_dict(state)
+        else:
+            m = tv.models.efficientnet_b3(weights=tvw)
+        preproc = tvw.transforms()
+        classes = tvw.meta["categories"]
         target_layer = m.features[-1]
         emb_module = m.classifier[-1]
     elif name in {"convnext_tiny", "convnext"}:
-        weights = tv.models.ConvNeXt_Tiny_Weights.DEFAULT
-        m = tv.models.convnext_tiny(weights=weights)
-        preproc = weights.transforms()
-        classes = weights.meta["categories"]
+        tvw = tv.models.ConvNeXt_Tiny_Weights.DEFAULT
+        state = _load_from_hf("convnext_tiny")
+        if state is not None:
+            m = tv.models.convnext_tiny(weights=None)
+            m.load_state_dict(state)
+        else:
+            m = tv.models.convnext_tiny(weights=tvw)
+        preproc = tvw.transforms()
+        classes = tvw.meta["categories"]
         # Last stage output is fine for CAM-like visualization
         target_layer = m.features[-1]
         emb_module = m.classifier[-1]  # Linear
