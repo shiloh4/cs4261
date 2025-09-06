@@ -12,6 +12,8 @@ const listFromEnv = (process.env.EXPO_PUBLIC_API_URLS as string | undefined)
   ?.split(',')
   .map((s) => s.trim())
   .filter(Boolean) || [];
+// Optional flag to disable health pings entirely (set EXPO_PUBLIC_SKIP_HEALTH_PROBE=true)
+const SKIP_HEALTH_PROBE = String(process.env.EXPO_PUBLIC_SKIP_HEALTH_PROBE || '').toLowerCase() === 'true';
 
 const DEFAULT_CANDIDATES = [
   primaryFromExtra,
@@ -178,6 +180,7 @@ function mergeSignals(a?: AbortSignal, b?: AbortSignal): AbortSignal | undefined
 }
 
 export async function pingHealthAsync(opts?: { signal?: AbortSignal; timeoutMs?: number; base?: string }) {
+  if (SKIP_HEALTH_PROBE) return; // no-op when disabled
   const ctrl = new AbortController();
   const signal = mergeSignals(opts?.signal, ctrl.signal);
   let t: any;
@@ -201,6 +204,11 @@ export async function pingHealthAsync(opts?: { signal?: AbortSignal; timeoutMs?:
 export async function resolveApiBase(opts?: { candidates?: string[]; signal?: AbortSignal; timeoutMs?: number }): Promise<string> {
   if (SELECTED_API_URL) return SELECTED_API_URL;
   const cand = (opts?.candidates && opts.candidates.length ? opts.candidates : DEFAULT_CANDIDATES).filter(Boolean);
+  if (SKIP_HEALTH_PROBE) {
+    // Trust the first candidate without probing
+    setApiUrl(cand[0] || 'http://localhost:5050');
+    return SELECTED_API_URL!;
+  }
   for (const base of cand) {
     try {
       await pingHealthAsync({ base, signal: opts?.signal, timeoutMs: opts?.timeoutMs ?? 5000 });

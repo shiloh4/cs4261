@@ -15,7 +15,7 @@ from huggingface_hub import hf_hub_download
 # Model loader (env-configurable)
 # -----------------------------------------------------------------------------
 
-MODEL_NAME = os.environ.get("MODEL_NAME", "mobilenet_v3_large").lower()
+MODEL_NAME = os.environ.get("MODEL_NAME", "mobilenet_v3_small").lower()
 
 # Limit torch intra-op threads on small instances unless overridden
 try:
