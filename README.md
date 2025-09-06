@@ -227,6 +227,36 @@ curl -F "image=@/path/to/photo.jpg" http://localhost:5050/analyze
 
 ```
 
+### GET /embeddings/points
+
+- Query params:
+  - `limit` (optional integer): number of recent predictions to consider. Defaults to `EMBED_WINDOW` (200 by default).
+
+- Response 200:
+
+```json
+{
+  "points": [
+    { "id": "pred_abc123", "x": 0.12, "y": -0.44, "label": "golden retriever", "thumb": "data:image/jpeg;base64,..." }
+  ]
+}
+
+
+```
+
+- Notes:
+  - Points are PCA‑reduced to 2D from the embedding vectors of your recent predictions.
+  - The backend recomputes PCA if any points in the active window are missing 2D coords.
+  - Only the most common embedding dimensionality among recent rows is returned.
+
+Example:
+
+```bash
+curl "http://localhost:5050/embeddings/points?limit=200"
+
+
+```
+
 ### GET /health
 
 - Response 200:
