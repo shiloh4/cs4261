@@ -61,6 +61,7 @@ export default function HomeScreen() {
     { key: 'efficientnet_b3', label: 'EfficientNet-B3' },
     { key: 'convnext_tiny', label: 'ConvNeXt-Tiny' },
   ];
+  const isHeavyModel = ['resnet50', 'efficientnet_b3', 'convnext_tiny'].includes(model);
 
   const navigation = useNavigation<any>();
 
@@ -89,6 +90,15 @@ export default function HomeScreen() {
               <Text style={styles.modelPillChevron}>▾</Text>
             </TouchableOpacity>
           </View>
+          {isHeavyModel && (
+            <View style={styles.warningBox}>
+              <Text style={styles.warningTitle}>Heads up: heavier model selected</Text>
+              <Text style={styles.warningText}>
+                ResNet50, EfficientNet‑B3, and ConvNeXt‑Tiny are resource‑intensive. For a smoother, more reliable
+                experience, you are encouraged to run the backend locally.
+              </Text>
+            </View>
+          )}
 
           <View style={styles.row}>
             <GradientButton title="Camera" onPress={takePhoto} style={{ flex: 1 }} />
@@ -193,4 +203,7 @@ const styles = StyleSheet.create({
   modelOptionActive: { backgroundColor: '#e0e7ff' },
   modelOptionText: { color: '#0f172a' },
   modelOptionTextActive: { fontWeight: '700' },
+  warningBox: { backgroundColor: 'rgba(254,243,199,0.4)', borderColor: '#f59e0b', borderWidth: 1, borderRadius: 8, padding: 10, gap: 4 },
+  warningTitle: { color: '#f5c300', fontWeight: '800' },
+  warningText: { color: '#f5c300' },
 });
